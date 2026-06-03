@@ -17,7 +17,6 @@ export interface Company {
   created_at: string;
   admin_name: string;
   admin_email: string;
-  admin_password: string;
 }
 
 export interface Subscription {

@@ -33,7 +33,7 @@ interface CompanyForm {
   logo_url: string;
   admin_name: string;
   admin_email: string;
-  admin_password: string;
+  admin_password: string; // Temporary only, never stored in DB
 }
 
 interface CompanyWithAdmin extends Company {
