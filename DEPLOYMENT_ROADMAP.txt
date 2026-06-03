@@ -1,0 +1,240 @@
+═══════════════════════════════════════════════════════════════════════════════
+                    ATENSIA PRODUCTION DEPLOYMENT ROADMAP
+═══════════════════════════════════════════════════════════════════════════════
+
+START HERE ──────────────────────────────────────────────────────────────────────
+
+  📦 YOUR PROJECT
+  └─ Atensia Ticket Management System
+  └─ Frontend: React + Vite + TypeScript
+  └─ Backend: Supabase (PostgreSQL + Auth + Edge Functions)
+  └─ Status: 🟡 READY FOR DEPLOYMENT
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                            🚀 4-STEP DEPLOYMENT PLAN
+
+═══════════════════════════════════════════════════════════════════════════════
+
+STEP 1: DEPLOY EDGE FUNCTION
+╔════════════════════════════════════════════════════════════════════════════╗
+║ What: Deploy secure demo credentials endpoint to Supabase                  ║
+║ Time: 20 minutes                                                           ║
+║ Who: Backend engineer or DevOps                                           ║
+║ What file: supabase/functions/demo-credentials/index.ts                   ║
+║                                                                             ║
+║ COMMANDS:                                                                  ║
+║ 1️⃣  npm install -g supabase                                               ║
+║ 2️⃣  supabase login                                                        ║
+║ 3️⃣  supabase link --project-ref YOUR_PROJECT_ID                          ║
+║ 4️⃣  supabase functions deploy demo-credentials                           ║
+║ 5️⃣  curl test (see QUICK_REFERENCE.md)                                    ║
+║                                                                             ║
+║ STATUS: 🟡 PENDING (waiting for you to run commands)                      ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+                                       ⬇️  (10 min wait)
+
+STEP 2: APPLY RLS MIGRATIONS
+╔════════════════════════════════════════════════════════════════════════════╗
+║ What: Enable Row-Level Security policies on all database tables           ║
+║ Time: 10 minutes                                                           ║
+║ Who: Database engineer or DevOps                                          ║
+║ What file: supabase/migrations/20260603000000_enable_rls_policies.sql    ║
+║                                                                             ║
+║ COMMANDS:                                                                  ║
+║ 1️⃣  supabase db push                                                      ║
+║ 2️⃣  Run verification query (see QUICK_REFERENCE.md)                       ║
+║                                                                             ║
+║ STATUS: 🟡 PENDING (after Step 1)                                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+                                       ⬇️  (5 min wait)
+
+STEP 3: CONFIGURE HTTPS & ENVIRONMENT
+╔════════════════════════════════════════════════════════════════════════════╗
+║ What: Enable HTTPS, set environment variables, deploy frontend            ║
+║ Time: 30-60 minutes (depending on hosting choice)                          ║
+║ Who: DevOps engineer                                                       ║
+║ Options: Vercel (easiest), Netlify, Self-hosted                           ║
+║                                                                             ║
+║ CHOOSE ONE:                                                                ║
+║                                                                             ║
+║ OPTION A: VERCEL (Recommended - 20 min)                                   ║
+║   ✅ Easiest setup                                                         ║
+║   ✅ Automatic HTTPS                                                       ║
+║   ✅ Free tier available                                                   ║
+║   Commands in QUICK_REFERENCE.md                                          ║
+║                                                                             ║
+║ OPTION B: NETLIFY (20 min)                                                ║
+║   ✅ Free tier                                                             ║
+║   ✅ Git integration                                                       ║
+║   Commands in QUICK_REFERENCE.md                                          ║
+║                                                                             ║
+║ OPTION C: SELF-HOSTED (60+ min)                                           ║
+║   ⚠️  Requires server knowledge                                            ║
+║   ✅ Full control                                                          ║
+║   Commands in QUICK_REFERENCE.md                                          ║
+║                                                                             ║
+║ STATUS: 🟡 PENDING (after Step 2)                                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+                                       ⬇️  (1 hour)
+
+STEP 4: EXECUTE SECURITY & QA TESTS
+╔════════════════════════════════════════════════════════════════════════════╗
+║ What: Run 116 security and functionality tests                             ║
+║ Time: 3-4 hours (can parallelize in team)                                  ║
+║ Who: QA engineer + developer                                              ║
+║                                                                             ║
+║ PART A: Security Tests (24 tests - 1 hour)                                 ║
+║   File: SECURITY_TESTING.md                                               ║
+║   ✅ Demo endpoint tests                                                   ║
+║   ✅ Authentication tests                                                  ║
+║   ✅ Authorization tests                                                   ║
+║   ✅ HTTPS tests                                                           ║
+║   ✅ Data exposure tests                                                   ║
+║   ✅ RLS enforcement tests                                                 ║
+║                                                                             ║
+║ PART B: QA Tests (92 tests - 2-3 hours)                                    ║
+║   File: QA_CHECKLIST.md                                                   ║
+║   ✅ Frontend functionality                                                ║
+║   ✅ Mobile responsiveness                                                 ║
+║   ✅ Cross-browser compatibility                                           ║
+║   ✅ Performance metrics                                                   ║
+║   ✅ Accessibility compliance                                              ║
+║   ✅ Data integrity                                                        ║
+║                                                                             ║
+║ RESULTS:                                                                   ║
+║   ✅ Must have 100% PASS rate                                              ║
+║   ✅ Document in QA_CHECKLIST.md                                           ║
+║   ✅ Get sign-offs from team                                               ║
+║                                                                             ║
+║ STATUS: 🟡 PENDING (after Step 3)                                         ║
+╚════════════════════════════════════════════════════════════════════════════╝
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                              FINAL CHECKLIST
+
+═══════════════════════════════════════════════════════════════════════════════
+
+BEFORE YOU START:
+  ☐ Have Project ID from Supabase dashboard
+  ☐ Have Anon Key from Supabase dashboard
+  ☐ Decide on hosting (Vercel / Netlify / Self-hosted)
+  ☐ Have domain name ready (if self-hosted)
+
+STEP 1 COMPLETION:
+  ☐ `supabase login` successful
+  ☐ Project linked (`supabase link`)
+  ☐ Function deployed (`supabase functions deploy demo-credentials`)
+  ☐ Endpoint responds with correct JSON
+  ☐ Function visible in Supabase dashboard
+
+STEP 2 COMPLETION:
+  ☐ Migration applied (`supabase db push`)
+  ☐ RLS policies verified with SQL query
+  ☐ All tables show rowsecurity = true
+
+STEP 3 COMPLETION:
+  ☐ Chose hosting option (A, B, or C)
+  ☐ Frontend deployed to hosting
+  ☐ Environment variables set
+  ☐ Can access https://your-domain
+  ☐ URL shows HTTPS with valid certificate
+  ☐ Security headers present (curl -I)
+
+STEP 4 COMPLETION:
+  ☐ All 24 security tests PASS ✅
+  ☐ All 92 QA tests PASS ✅
+  ☐ Results documented in QA_CHECKLIST.md
+  ☐ Sign-offs from team (dev, security, QA, DevOps, CTO)
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                            🎉 SUCCESS CRITERIA
+
+═══════════════════════════════════════════════════════════════════════════════
+
+After all 4 steps, you should have:
+
+  ✅ HTTPS working everywhere
+     curl -I https://your-domain.com should show 301 from HTTP
+     Certificate should be valid
+
+  ✅ Demo login working
+     Edge function returns credentials
+     Rate limiting works (6th request = 429)
+
+  ✅ RLS policies enforced
+     Users only see their company data
+     Admins see more data
+     Superadmins see everything
+
+  ✅ All tests passing
+     24 security tests ✅ PASS
+     92 QA tests ✅ PASS
+
+  ✅ Documentation complete
+     All team members signed off
+     PRODUCTION_CHECKLIST.md completed
+     Deployment notes documented
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                          📚 REFERENCE DOCUMENTS
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📖 STEP_BY_STEP_DEPLOYMENT.md
+   └─ Detailed instructions for each step
+   └─ Read this first
+
+⚡ QUICK_REFERENCE.md
+   └─ Copy/paste commands
+   └─ Keep this open while deploying
+
+🔐 SECURITY_TESTING.md
+   └─ How to test security (24 tests)
+   └─ Use during Step 4
+
+✅ QA_CHECKLIST.md
+   └─ How to test functionality (92 tests)
+   └─ Use during Step 4
+
+🚀 DEPLOYMENT_GUIDE.md
+   └─ Detailed explanation of each option
+   └─ Reference if you need more context
+
+📋 PRODUCTION_CHECKLIST.md
+   └─ Final sign-off document
+   └─ Complete at the very end
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                              🕐 TIME ESTIMATE
+
+═══════════════════════════════════════════════════════════════════════════════
+
+STEP 1:  20 minutes  (Edge Function deployment)
+STEP 2:  10 minutes  (RLS migrations)
+STEP 3:  30-60 min   (HTTPS + environment)
+STEP 4:  3-4 hours   (Testing)
+         ─────────────────────
+TOTAL:   4-5 hours total wall-clock time
+
+If you parallelize (multiple people):
+  - One person does Step 1 + 2 (30 min)
+  - Another does Step 3 (30-60 min)
+  - Another does Step 4 (3-4 hours)
+  - All can happen ~simultaneously
+  - Total: Still 3-4 hours, but less waiting
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                           START STEP 1 NOW
+
+                    Open STEP_BY_STEP_DEPLOYMENT.md
+
+═══════════════════════════════════════════════════════════════════════════════
