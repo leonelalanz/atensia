@@ -164,7 +164,7 @@ export default function LoginPage() {
           <div>
             <h1 className="text-2xl xl:text-3xl font-bold text-white leading-tight mb-2">
               Gestiona incidencias<br />
-              <span className="text-blue-400">con claridad total</span>
+              <span className="text-blue-400">con claridad total.</span>
             </h1>
             <p className="text-slate-400 text-sm leading-relaxed">
               Plataforma de soporte técnico multi-empresa con SLAs, roles y trazabilidad completa.
