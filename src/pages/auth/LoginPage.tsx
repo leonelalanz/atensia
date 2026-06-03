@@ -83,15 +83,23 @@ export default function LoginPage() {
     setDemoLoading(email);
     setError('');
     try {
-      // Fetch demo credentials from secure backend endpoint
-      const response = await fetch('/api/auth/demo-credentials', {
+      // Fetch demo credentials from Supabase Edge Function
+      // Must use import.meta.env.VITE_SUPABASE_URL for construction
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (!supabaseUrl) {
+        throw new Error('Supabase URL not configured');
+      }
+
+      const functionUrl = `${supabaseUrl}/functions/v1/demo-credentials`;
+      const response = await fetch(functionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to get demo credentials');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to get demo credentials');
       }
 
       const { password } = await response.json();
@@ -104,7 +112,8 @@ export default function LoginPage() {
         navigate('dashboard');
       }
     } catch (err) {
-      setError('Demo mode is not available. Please contact support.');
+      console.error('Demo login error:', err);
+      setError(err instanceof Error ? err.message : 'Demo mode is not available. Please contact support.');
       setDemoLoading(null);
     }
   }
