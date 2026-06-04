@@ -86,11 +86,9 @@ export default function AuditLogsPage() {
       if (auditResult.error) throw auditResult.error;
       if (authResult.error) throw authResult.error;
 
-      // Load all profiles to map user IDs to emails
+      // Load all profiles using function (bypasses RLS)
       const { data: allProfiles } = await supabase
-        .from('profiles')
-        .select('id, email')
-        .limit(1000);
+        .rpc('get_all_profiles');
 
       const profileMap = new Map((allProfiles || []).map((p: any) => [p.id, p.email]));
 
