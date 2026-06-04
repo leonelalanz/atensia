@@ -54,7 +54,9 @@ export default function CompaniesPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editCompany, setEditCompany] = useState<Company | null>(null);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; company?: CompanyWithAdmin }>({ open: false });
   const [form, setForm] = useState<CompanyForm>({
     name: '', plan: 'basic', status: 'active', primary_color: '#2563eb', logo_url: '', admin_name: '', admin_email: '', admin_password: ''
   });
@@ -230,25 +232,25 @@ export default function CompaniesPage() {
     setCompanies((prev) => prev.map((co) => co.id === c.id ? { ...co, maintenance_mode: !c.maintenance_mode } : co));
   }
 
-  async function deleteCompany(c: Company) {
-    if (!window.confirm(`¿Eliminar la empresa "${c.name}"? La suscripción se mantendrá como registro. Esta acción no se puede deshacer.`)) return;
+  function openDeleteConfirm(c: CompanyWithAdmin) {
+    setConfirmModal({ open: true, company: c });
+  }
 
-    setSaving(true);
+  async function confirmDelete() {
+    if (!confirmModal.company) return;
+    setDeleting(true);
     setError('');
     try {
-      // Llamar a la función RPC que elimina la empresa
-      const { error: err } = await supabase.rpc('delete_company', { p_company_id: c.id });
-
+      const { error: err } = await supabase.from('companies').delete().eq('id', confirmModal.company.id);
       if (err) throw new Error(`Error al eliminar empresa: ${err.message}`);
-
-      // Recargar lista
       await loadCompanies();
     } catch (err: any) {
       const errorMsg = err.message || 'Error al eliminar la empresa.';
       setError(errorMsg);
-      console.error('Error en deleteCompany:', err);
+      console.error('Error en confirmDelete:', err);
     } finally {
-      setSaving(false);
+      setDeleting(false);
+      setConfirmModal({ open: false });
     }
   }
 
@@ -366,7 +368,7 @@ export default function CompaniesPage() {
                   <Wrench size={13} />
                   {c.maintenance_mode ? 'Desactivar' : 'Modo mant.'}
                 </button>
-                <button onClick={() => deleteCompany(c)} disabled={saving}
+                <button onClick={() => openDeleteConfirm(c)} disabled={deleting}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 ml-auto">
                   <Trash2 size={13} />Eliminar
                 </button>
@@ -449,6 +451,29 @@ export default function CompaniesPage() {
             <button onClick={() => setModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50">
               {saving ? 'Guardando...' : editCompany ? 'Actualizar' : 'Crear Empresa'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={confirmModal.open} onClose={() => setConfirmModal({ open: false })} title="Confirmar eliminación" size="sm">
+        <div className="space-y-4">
+          <p className="text-gray-700 dark:text-gray-300">
+            ¿Estás seguro de que deseas eliminar la empresa "{confirmModal.company?.name}"? La suscripción se mantendrá como registro. Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => setConfirmModal({ open: false })}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
             </button>
           </div>
         </div>
