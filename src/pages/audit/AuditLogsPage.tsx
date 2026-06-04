@@ -86,24 +86,22 @@ export default function AuditLogsPage() {
       if (auditResult.error) throw auditResult.error;
       if (authResult.error) throw authResult.error;
 
-      // For auth logs, we need to fetch emails from profiles separately
-      const authLogsWithEmails = await Promise.all(
-        (authResult.data || []).map(async (log: any) => {
-          // Try to get email from profiles table
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('email')
-            .eq('id', log.user_id)
-            .maybeSingle();
+      // Load all profiles to map user IDs to emails
+      const { data: allProfiles } = await supabase
+        .from('profiles')
+        .select('id, email')
+        .limit(1000);
 
-          // If no profile found, the email might not be created yet
-          return {
-            ...log,
-            user_email: profile?.email || 'unknown',
-            log_type: 'auth' as const,
-          };
-        })
-      );
+      const profileMap = new Map((allProfiles || []).map((p: any) => [p.id, p.email]));
+
+      // For auth logs, map user IDs to emails using the profile map
+      const authLogsWithEmails = (authResult.data || []).map((log: any) => {
+        return {
+          ...log,
+          user_email: profileMap.get(log.user_id) || 'unknown',
+          log_type: 'auth' as const,
+        };
+      });
 
       const allLogs: AuditLog[] = [
         ...(auditResult.data?.map((log: any) => ({
