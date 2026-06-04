@@ -102,10 +102,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   async function signOut() {
     // Log logout event before signing out
     if (user && profile?.company_id) {
-      await logLogout(profile.company_id, user.id);
+      try {
+        await logLogout(profile.company_id, user.id);
+      } catch (err) {
+        console.error('Error logging logout:', err);
+      }
     }
-    await supabase.auth.signOut();
+
+    // Sign out from Supabase
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Error signing out:', error);
+
+    // Clear local state immediately
     setProfile(null);
+    setUser(null);
+    setSession(null);
   }
 
   async function resetPassword(email: string): Promise<{ error: string | null }> {
