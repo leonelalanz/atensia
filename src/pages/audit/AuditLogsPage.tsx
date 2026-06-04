@@ -95,9 +95,11 @@ export default function AuditLogsPage() {
             .select('email')
             .eq('id', log.user_id)
             .maybeSingle();
+
+          // If no profile found, the email might not be created yet
           return {
             ...log,
-            user_email: profile?.email || `unknown (${log.user_id.substring(0, 8)})`,
+            user_email: profile?.email || 'unknown',
             log_type: 'auth' as const,
           };
         })
