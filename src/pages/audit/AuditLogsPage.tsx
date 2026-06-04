@@ -87,27 +87,42 @@ export default function AuditLogsPage() {
       if (authResult.error) throw authResult.error;
 
       // Load all profiles using function (bypasses RLS)
-      const { data: allProfiles } = await supabase
+      const { data: allProfiles, error: profilesError } = await supabase
         .rpc('get_all_profiles');
 
-      const profileMap = new Map((allProfiles || []).map((p: any) => [p.id, p.email]));
+      if (profilesError) {
+        console.error('Error loading profiles:', profilesError);
+      }
+
+      // Create profile map with normalized UUIDs
+      const profileMap = new Map(
+        (allProfiles || []).map((p: any) => [
+          p.id?.toLowerCase?.() || p.id,
+          p.email
+        ])
+      );
 
       // For auth logs, map user IDs to emails using the profile map
       const authLogsWithEmails = (authResult.data || []).map((log: any) => {
-        const email = profileMap.get(log.user_id);
+        const userId = log.user_id?.toLowerCase?.() || log.user_id;
+        const email = profileMap.get(userId);
         return {
           ...log,
-          user_email: email || (log.user_id ? `unknown (${log.user_id.substring(0, 8)})` : 'unknown'),
+          user_email: email || 'unknown',
           log_type: 'auth' as const,
         };
       });
 
       const allLogs: AuditLog[] = [
-        ...(auditResult.data?.map((log: any) => ({
-          ...log,
-          user_email: log.user?.email || (log.user_id ? `unknown (${log.user_id.substring(0, 8)})` : 'unknown'),
-          log_type: 'audit' as const,
-        })) || []),
+        ...(auditResult.data?.map((log: any) => {
+          const userId = log.user_id?.toLowerCase?.() || log.user_id;
+          const email = log.user?.email || profileMap.get(userId);
+          return {
+            ...log,
+            user_email: email || 'unknown',
+            log_type: 'audit' as const,
+          };
+        }) || []),
         ...authLogsWithEmails,
       ].sort(
         (a, b) =>
