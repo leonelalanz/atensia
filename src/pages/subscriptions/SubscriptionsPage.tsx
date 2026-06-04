@@ -52,6 +52,7 @@ export default function SubscriptionsPage() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; id?: string }>({ open: false });
   const [form, setForm] = useState<SubForm>({
     company_id: '', plan: 'basic', status: 'active',
     start_date: new Date().toISOString().slice(0, 10),
@@ -134,13 +135,18 @@ export default function SubscriptionsPage() {
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('¿Eliminar esta suscripción?')) return;
+  function openDeleteConfirm(id: string) {
+    setConfirmModal({ open: true, id });
+  }
+
+  async function confirmDelete() {
+    if (!confirmModal.id) return;
     setDeleting(true);
-    const { error: err } = await supabase.from('subscriptions').delete().eq('id', id);
+    const { error: err } = await supabase.from('subscriptions').delete().eq('id', confirmModal.id);
     if (err) { setError(err.message); }
     await loadData();
     setDeleting(false);
+    setConfirmModal({ open: false });
   }
 
   const filtered = subscriptions.filter((s) => {
@@ -250,7 +256,7 @@ export default function SubscriptionsPage() {
                           <Edit2 size={16} />
                         </button>
                         <button
-                          onClick={() => handleDelete(s.id)}
+                          onClick={() => openDeleteConfirm(s.id)}
                           disabled={deleting}
                           className="p-1.5 text-red-600 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors disabled:opacity-50"
                           title="Eliminar"
@@ -349,6 +355,29 @@ export default function SubscriptionsPage() {
             <button onClick={() => setModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
             <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50">
               {saving ? 'Guardando...' : isEditing ? 'Actualizar' : 'Crear'}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal open={confirmModal.open} onClose={() => setConfirmModal({ open: false })} title="Confirmar eliminación" size="sm">
+        <div className="space-y-4">
+          <p className="text-gray-700 dark:text-gray-300">
+            ¿Estás seguro de que deseas eliminar esta suscripción? Esta acción no se puede deshacer.
+          </p>
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={() => setConfirmModal({ open: false })}
+              className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmDelete}
+              disabled={deleting}
+              className="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium bg-red-600 hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
+              {deleting ? 'Eliminando...' : 'Eliminar'}
             </button>
           </div>
         </div>
