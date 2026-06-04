@@ -16,6 +16,7 @@ import SLAPage from './pages/sla/SLAPage';
 import ActivitiesPage from './pages/activities/ActivitiesPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import BrandingPage from './pages/branding/BrandingPage';
+import AuditLogsPage from './pages/audit/AuditLogsPage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import HelpPage from './pages/help/HelpPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
@@ -65,6 +66,7 @@ function AppRoutes() {
       case 'subscriptions': return role === 'superadmin' ? <SubscriptionsPage /> : <DashboardPage />;
       case 'sla': return role === 'admin' ? <SLAPage /> : <DashboardPage />;
       case 'activities': return (role === 'developer' || role === 'admin') ? <ActivitiesPage /> : <DashboardPage />;
+      case 'audit': return (role === 'admin' || role === 'superadmin') ? <AuditLogsPage /> : <DashboardPage />;
       case 'settings': return <SettingsPage />;
       case 'branding': return role === 'admin' || role === 'superadmin' ? <BrandingPage /> : <DashboardPage />;
       default: return <DashboardPage />;

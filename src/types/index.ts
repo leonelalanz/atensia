@@ -146,6 +146,7 @@ export type Route =
   | 'subscriptions'
   | 'sla'
   | 'activities'
+  | 'audit'
   | 'settings'
   | 'help'
   | 'branding';

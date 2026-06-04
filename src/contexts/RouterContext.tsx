@@ -20,6 +20,7 @@ const ROUTE_TO_PATH: Record<Route, string> = {
   'subscriptions':  '/subscriptions',
   'sla':            '/sla',
   'activities':     '/activities',
+  'audit':          '/audit',
   'settings':       '/settings',
   'branding':       '/branding',
   'help':           '/help',
@@ -39,6 +40,7 @@ function pathToRoute(pathname: string): { route: Route; params: Record<string, s
   if (pathname === '/subscriptions') return { route: 'subscriptions', params: {} };
   if (pathname === '/sla') return { route: 'sla', params: {} };
   if (pathname === '/activities') return { route: 'activities', params: {} };
+  if (pathname === '/audit') return { route: 'audit', params: {} };
   if (pathname === '/settings') return { route: 'settings', params: {} };
   if (pathname === '/branding') return { route: 'branding', params: {} };
   if (pathname === '/help') return { route: 'help', params: {} };
