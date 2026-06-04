@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import { Profile } from '../types';
+import { logLogin, logLogout } from '../services/authLogsService';
 
 interface AuthContextType {
   user: User | null;
@@ -65,8 +66,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   async function signIn(email: string, password: string): Promise<{ error: string | null }> {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { error: error.message };
+
+    // Log login event
+    if (data?.user?.id) {
+      const userProfile = await supabase
+        .from('profiles')
+        .select('company_id')
+        .eq('id', data.user.id)
+        .maybeSingle();
+
+      if (userProfile.data?.company_id) {
+        await logLogin(userProfile.data.company_id, data.user.id);
+      }
+    }
+
     return { error: null };
   }
 
@@ -85,6 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    // Log logout event before signing out
+    if (user && profile?.company_id) {
+      await logLogout(profile.company_id, user.id);
+    }
     await supabase.auth.signOut();
     setProfile(null);
   }

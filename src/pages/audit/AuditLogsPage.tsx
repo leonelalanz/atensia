@@ -9,14 +9,17 @@ interface AuditLog {
   id: string;
   user_id: string;
   action: string;
-  table_name: string;
-  record_id: string;
-  old_data: Record<string, any>;
-  new_data: Record<string, any>;
+  table_name?: string;
+  record_id?: string;
+  old_data?: Record<string, any>;
+  new_data?: Record<string, any>;
   status: string;
-  error_message: string;
+  error_message?: string;
   created_at: string;
   user_email: string;
+  log_type?: 'audit' | 'auth';
+  ip_address?: string;
+  user_agent?: string;
 }
 
 export default function AuditLogsPage() {
@@ -50,7 +53,10 @@ export default function AuditLogsPage() {
   async function loadLogs() {
     try {
       setLoading(true);
-      let query = supabase
+      const companyId = profile?.role === 'admin' ? profile?.company_id : undefined;
+
+      // Load audit logs
+      let auditQuery = supabase
         .from('audit_logs')
         .select(`
           *,
@@ -58,19 +64,48 @@ export default function AuditLogsPage() {
         `)
         .order('created_at', { ascending: false });
 
-      if (profile?.role === 'admin' && profile?.company_id) {
-        query = query.eq('company_id', profile.company_id);
+      if (companyId) {
+        auditQuery = auditQuery.eq('company_id', companyId);
       }
 
-      const { data, error } = await query.limit(500);
-      if (error) throw error;
+      // Load auth logs
+      let authQuery = supabase
+        .from('auth_logs')
+        .select(`
+          *,
+          user:user_id(email)
+        `)
+        .order('created_at', { ascending: false });
 
-      setLogs(
-        data?.map((log: any) => ({
+      if (companyId) {
+        authQuery = authQuery.eq('company_id', companyId);
+      }
+
+      const [auditResult, authResult] = await Promise.all([
+        auditQuery.limit(500),
+        authQuery.limit(500),
+      ]);
+
+      if (auditResult.error) throw auditResult.error;
+      if (authResult.error) throw authResult.error;
+
+      const allLogs: AuditLog[] = [
+        ...(auditResult.data?.map((log: any) => ({
           ...log,
           user_email: log.user?.email || 'unknown',
-        })) || []
+          log_type: 'audit' as const,
+        })) || []),
+        ...(authResult.data?.map((log: any) => ({
+          ...log,
+          user_email: log.user?.email || 'unknown',
+          log_type: 'auth' as const,
+        })) || []),
+      ].sort(
+        (a, b) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
       );
+
+      setLogs(allLogs);
     } catch (err) {
       console.error('Error loading audit logs:', err);
     } finally {
@@ -256,7 +291,11 @@ export default function AuditLogsPage() {
                     {log.user_email}
                   </td>
                   <td className="px-4 py-3">
-                    <span className="px-2 py-1 rounded-md bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs font-semibold">
+                    <span className={`px-2 py-1 rounded-md text-xs font-semibold ${
+                      log.log_type === 'auth'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300'
+                        : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                    }`}>
                       {log.action}
                     </span>
                   </td>
@@ -315,14 +354,16 @@ export default function AuditLogsPage() {
                   {selectedLog.action}
                 </p>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Tabla
-                </label>
-                <p className="text-gray-900 dark:text-white font-medium mt-1">
-                  {selectedLog.table_name || '—'}
-                </p>
-              </div>
+              {selectedLog.table_name && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Tabla
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-medium mt-1">
+                    {selectedLog.table_name}
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Timestamp
@@ -331,6 +372,16 @@ export default function AuditLogsPage() {
                   {new Date(selectedLog.created_at).toLocaleString('es-ES')}
                 </p>
               </div>
+              {selectedLog.ip_address && (
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    IP Address
+                  </label>
+                  <p className="text-gray-900 dark:text-white font-medium mt-1 font-mono">
+                    {selectedLog.ip_address}
+                  </p>
+                </div>
+              )}
             </div>
 
             {selectedLog.old_data && (
@@ -351,6 +402,17 @@ export default function AuditLogsPage() {
                 </label>
                 <pre className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg overflow-auto text-xs text-gray-900 dark:text-white">
                   {JSON.stringify(selectedLog.new_data, null, 2)}
+                </pre>
+              </div>
+            )}
+
+            {selectedLog.user_agent && (
+              <div>
+                <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                  User Agent
+                </label>
+                <pre className="mt-1 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg overflow-auto text-xs text-gray-900 dark:text-white">
+                  {selectedLog.user_agent}
                 </pre>
               </div>
             )}
