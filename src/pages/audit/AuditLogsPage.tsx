@@ -94,9 +94,10 @@ export default function AuditLogsPage() {
 
       // For auth logs, map user IDs to emails using the profile map
       const authLogsWithEmails = (authResult.data || []).map((log: any) => {
+        const email = profileMap.get(log.user_id);
         return {
           ...log,
-          user_email: profileMap.get(log.user_id) || 'unknown',
+          user_email: email || (log.user_id ? `unknown (${log.user_id.substring(0, 8)})` : 'unknown'),
           log_type: 'auth' as const,
         };
       });
@@ -104,7 +105,7 @@ export default function AuditLogsPage() {
       const allLogs: AuditLog[] = [
         ...(auditResult.data?.map((log: any) => ({
           ...log,
-          user_email: log.user?.email || 'unknown',
+          user_email: log.user?.email || (log.user_id ? `unknown (${log.user_id.substring(0, 8)})` : 'unknown'),
           log_type: 'audit' as const,
         })) || []),
         ...authLogsWithEmails,
