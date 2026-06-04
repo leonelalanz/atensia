@@ -68,13 +68,10 @@ export default function AuditLogsPage() {
         auditQuery = auditQuery.eq('company_id', companyId);
       }
 
-      // Load auth logs
+      // Load auth logs (no user join - auth.users is not a public table)
       let authQuery = supabase
         .from('auth_logs')
-        .select(`
-          *,
-          user:user_id(email)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (companyId) {
@@ -89,17 +86,30 @@ export default function AuditLogsPage() {
       if (auditResult.error) throw auditResult.error;
       if (authResult.error) throw authResult.error;
 
+      // For auth logs, we need to fetch emails from profiles separately
+      const authLogsWithEmails = await Promise.all(
+        (authResult.data || []).map(async (log: any) => {
+          // Try to get email from profiles table
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email')
+            .eq('id', log.user_id)
+            .maybeSingle();
+          return {
+            ...log,
+            user_email: profile?.email || `unknown (${log.user_id.substring(0, 8)})`,
+            log_type: 'auth' as const,
+          };
+        })
+      );
+
       const allLogs: AuditLog[] = [
         ...(auditResult.data?.map((log: any) => ({
           ...log,
           user_email: log.user?.email || 'unknown',
           log_type: 'audit' as const,
         })) || []),
-        ...(authResult.data?.map((log: any) => ({
-          ...log,
-          user_email: log.user?.email || 'unknown',
-          log_type: 'auth' as const,
-        })) || []),
+        ...authLogsWithEmails,
       ].sort(
         (a, b) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
