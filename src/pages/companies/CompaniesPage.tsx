@@ -177,6 +177,17 @@ export default function CompaniesPage() {
             if (passErr) throw passErr;
           }
         }
+
+        // Actualizar empresa en el estado local
+        setCompanies((prev) =>
+          prev.map((c) =>
+            c.id === editCompany.id
+              ? { ...c, ...companyData, admin_name: form.admin_name, admin_email: form.admin_email }
+              : c
+          )
+        );
+        setModalOpen(false);
+        return;
       } else {
         // 1. Insertar Empresa
         const { data: company, error: compErr } = await supabase
@@ -212,11 +223,25 @@ export default function CompaniesPage() {
             avatar_emoji: '👤',
             avatar_color: form.primary_color
           });
-          if (profErr) throw profErr;
+          if (profErr) {
+            console.error('Profile creation error:', profErr);
+            throw new Error(`Error al crear perfil del administrador: ${profErr.message}`);
+          }
         }
 
         // 4. Políticas por defecto
         await supabase.rpc('create_default_sla_policies', { p_company_id: company.id });
+
+        // 5. Agregar la empresa recién creada al estado local
+        const newCompanyWithAdmin: CompanyWithAdmin = {
+          ...company,
+          admin_id: authData.user?.id,
+          admin_name: form.admin_name,
+          admin_email: form.admin_email
+        };
+        setCompanies([newCompanyWithAdmin, ...companies]);
+        setModalOpen(false);
+        return;
       }
 
       await loadCompanies();
