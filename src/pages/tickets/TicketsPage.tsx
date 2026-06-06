@@ -60,10 +60,14 @@ export default function TicketsPage() {
       .from('tickets')
       .select('*, creator:profiles!created_by(*), assignee:profiles!assigned_to(*), sla_record:sla_records(*)')
       .order('created_at', { ascending: false });
-    if (profile.role !== 'admin' && profile.role !== 'superadmin') {
-      query = query.eq('company_id', profile.company_id!);
-    } else if (profile.company_id) {
+    if (profile.role === 'superadmin') {
+      // Super admin sees all tickets from all companies
+    } else if (profile.role === 'admin' && profile.company_id) {
+      // Admin sees only tickets from their company
       query = query.eq('company_id', profile.company_id);
+    } else {
+      // Agent and developer see only tickets from their company
+      query = query.eq('company_id', profile.company_id!);
     }
     const { data } = await query;
     setTickets((data ?? []) as TicketType[]);
