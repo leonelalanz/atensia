@@ -56,22 +56,56 @@ export default function TicketsPage() {
   const loadTickets = useCallback(async (silent = false) => {
     if (!profile) return;
     if (!silent) setLoading(true);
-    let query = supabase
-      .from('tickets')
-      .select('*, creator:profiles!created_by(*), assignee:profiles!assigned_to(*), sla_record:sla_records(*)')
-      .order('created_at', { ascending: false });
-    if (profile.role === 'superadmin') {
-      // Super admin sees all tickets from all companies
-    } else if (profile.role === 'admin' && profile.company_id) {
-      // Admin sees only tickets from their company
-      query = query.eq('company_id', profile.company_id);
-    } else {
-      // Agent and developer see only tickets from their company
-      query = query.eq('company_id', profile.company_id!);
+
+    try {
+      let query = supabase
+        .from('tickets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (profile.role === 'superadmin') {
+        // Super admin sees all tickets from all companies
+      } else if (profile.role === 'admin' && profile.company_id) {
+        // Admin sees only tickets from their company
+        query = query.eq('company_id', profile.company_id);
+      } else {
+        // Agent and developer see only tickets from their company
+        query = query.eq('company_id', profile.company_id!);
+      }
+
+      const { data: ticketsData, error } = await query;
+
+      if (error) {
+        console.error('Error loading tickets:', error);
+        setTickets([]);
+      } else {
+        // Load profiles and SLA records
+        const { data: allProfiles } = await supabase.rpc('get_all_profiles');
+        const profileMap = new Map(allProfiles?.map((p: any) => [p.id, p]) ?? []);
+
+        const ticketIds = ticketsData?.map((t: any) => t.id) ?? [];
+        const { data: slaRecords } = await supabase
+          .from('sla_records')
+          .select('*')
+          .in('ticket_id', ticketIds);
+
+        const slaMap = new Map(slaRecords?.map((s: any) => [s.ticket_id, s]) ?? []);
+
+        const enrichedTickets = (ticketsData ?? []).map((ticket: any) => ({
+          ...ticket,
+          creator: ticket.created_by ? profileMap.get(ticket.created_by) : null,
+          assignee: ticket.assigned_to ? profileMap.get(ticket.assigned_to) : null,
+          sla_record: slaMap.get(ticket.id) ?? null
+        }));
+
+        setTickets(enrichedTickets as TicketType[]);
+      }
+    } catch (err) {
+      console.error('Exception loading tickets:', err);
+      setTickets([]);
+    } finally {
+      if (!silent) setLoading(false);
     }
-    const { data } = await query;
-    setTickets((data ?? []) as TicketType[]);
-    if (!silent) setLoading(false);
   }, [profile]);
 
   useEffect(() => { loadTickets(); }, [loadTickets]);
