@@ -21,6 +21,8 @@ import LoadingSpinner from './components/ui/LoadingSpinner';
 import HelpPage from './pages/help/HelpPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+import TermsOfServicePage from './pages/legal/TermsOfServicePage';
+import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 
 function AppRoutes() {
@@ -61,7 +63,7 @@ function AppRoutes() {
       case 'help': return <HelpPage />;
       case 'ticket-detail': return <TicketDetailPage />;
       case 'new-ticket': return <NewTicketPage />;
-      case 'users': return role === 'admin' ? <UsersPage /> : <DashboardPage />;
+      case 'users': return (role === 'admin' || role === 'superadmin') ? <UsersPage /> : <DashboardPage />;
       case 'companies': return role === 'superadmin' ? <CompaniesPage /> : <DashboardPage />;
       case 'subscriptions': return role === 'superadmin' ? <SubscriptionsPage /> : <DashboardPage />;
       case 'sla': return role === 'admin' ? <SLAPage /> : <DashboardPage />;
@@ -69,6 +71,8 @@ function AppRoutes() {
       case 'audit': return (role === 'admin' || role === 'superadmin') ? <AuditLogsPage /> : <DashboardPage />;
       case 'settings': return <SettingsPage />;
       case 'branding': return role === 'admin' || role === 'superadmin' ? <BrandingPage /> : <DashboardPage />;
+      case 'terms': return <TermsOfServicePage />;
+      case 'privacy': return <PrivacyPolicyPage />;
       default: return <DashboardPage />;
     }
   }

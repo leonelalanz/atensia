@@ -3,7 +3,7 @@ import { Plus, Search, UserCheck, UserX, Pencil, Users, Download, FileText, Slid
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { usePlan } from '../../hooks/usePlan';
-import { Profile, UserRole } from '../../types';
+import { Profile, UserRole, Company } from '../../types';
 import Modal from '../../components/ui/Modal';
 import Avatar from '../../components/ui/Avatar';
 import Badge from '../../components/ui/Badge';
@@ -34,12 +34,14 @@ interface UserFormData {
   password: string;
   avatar_emoji: string;
   avatar_color: string;
+  company_id: string;
 }
 
 export default function UsersPage() {
   const { profile } = useAuth();
   const { maxAgentes, canExportPDF, isAtAgentLimit, planLabel } = usePlan();
   const [users, setUsers] = useState<Profile[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState<UserRole | ''>('');
@@ -51,27 +53,44 @@ export default function UsersPage() {
   const [editUser, setEditUser] = useState<Profile | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const defaultCompanyId = profile?.role === 'superadmin' ? '' : (profile?.company_id || '');
   const [form, setForm] = useState<UserFormData>({
     email: '', full_name: '', role: 'agent', password: '',
-    avatar_emoji: '👤', avatar_color: '#2563eb',
+    avatar_emoji: '👤', avatar_color: '#2563eb', company_id: defaultCompanyId,
   });
 
-  useEffect(() => { loadUsers(); }, [profile]);
+  useEffect(() => {
+    loadUsers();
+    if (profile?.role === 'superadmin') {
+      loadCompanies();
+    }
+  }, [profile]);
+
+  async function loadCompanies() {
+    const { data } = await supabase.from('companies').select('*').order('created_at', { ascending: false });
+    setCompanies((data ?? []) as Company[]);
+  }
 
   async function loadUsers() {
-    if (!profile?.company_id) return;
-    const { data } = await supabase
+    if (!profile) return;
+    let query = supabase
       .from('profiles')
       .select('*')
-      .eq('company_id', profile.company_id)
       .order('created_at', { ascending: false });
+
+    if (profile.role !== 'superadmin' && profile.company_id) {
+      query = query.eq('company_id', profile.company_id);
+    }
+
+    const { data } = await query;
     setUsers((data ?? []) as Profile[]);
     setLoading(false);
   }
 
   function openCreate() {
     setEditUser(null);
-    setForm({ email: '', full_name: '', role: 'agent', password: '', avatar_emoji: '👤', avatar_color: '#2563eb' });
+    const defaultId = profile?.role === 'superadmin' ? (companies[0]?.id || '') : (profile?.company_id || '');
+    setForm({ email: '', full_name: '', role: 'agent', password: '', avatar_emoji: '👤', avatar_color: '#2563eb', company_id: defaultId });
     setError('');
     setModalOpen(true);
   }
@@ -85,6 +104,7 @@ export default function UsersPage() {
 
   async function handleSave() {
     if (!form.email || !form.full_name) { setError('Email y nombre son obligatorios.'); return; }
+    if (!form.company_id) { setError('Debe seleccionar una empresa.'); return; }
     setSaving(true);
     setError('');
 
@@ -103,7 +123,7 @@ export default function UsersPage() {
       if (signUpErr || !user) { setError(signUpErr?.message ?? 'Error al crear el usuario.'); setSaving(false); return; }
       await supabase.from('profiles').upsert({
         id: user.id, email: form.email, full_name: form.full_name, role: form.role,
-        company_id: profile?.company_id, avatar_emoji: form.avatar_emoji, avatar_color: form.avatar_color,
+        company_id: form.company_id, avatar_emoji: form.avatar_emoji, avatar_color: form.avatar_color,
       });
     }
 
@@ -337,6 +357,16 @@ export default function UsersPage() {
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
+          {profile?.role === 'superadmin' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Empresa *</label>
+              <select value={form.company_id} onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">Seleccionar empresa...</option>
+                {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={() => setModalOpen(false)} className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">Cancelar</button>
             <button type="button" onClick={handleSave} disabled={saving} className="flex-1 px-4 py-2.5 rounded-xl text-white text-sm font-medium transition-all hover:opacity-90 disabled:opacity-50"
