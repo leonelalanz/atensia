@@ -20,13 +20,20 @@ async function notify(
   type:     NotifType,
   ticketId: string | null = null,
 ) {
-  await supabase.from('notifications').insert({
-    user_id:   userId,
-    title,
-    body,
-    type,
-    ticket_id: ticketId,
-  });
+  try {
+    console.log('📢 Notifying user:', { userId, title, body, type, ticketId });
+    const { error } = await supabase.from('notifications').insert({
+      user_id:   userId,
+      title,
+      body,
+      type,
+      ticket_id: ticketId,
+    });
+    if (error) console.error('❌ Notification error:', error);
+    else console.log('✅ Notification created for:', userId);
+  } catch (err) {
+    console.error('❌ Error creating notification:', err);
+  }
 }
 
 /** Notifies multiple users, skipping `excludeId` (the actor). */
@@ -44,13 +51,35 @@ async function notifyMany(
 
 /** Returns active admin user IDs for a company. */
 async function getAdminIds(companyId: string): Promise<string[]> {
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('profiles')
-    .select('id')
+    .select('id, full_name, email')
     .eq('company_id', companyId)
     .eq('role', 'admin')
     .eq('is_active', true);
-  return (data ?? []).map((p) => p.id as string);
+  const adminIds = (data ?? []).map((p) => p.id as string);
+  console.log('🔍 getAdminIds for company', companyId, ':', { adminCount: adminIds.length, admins: data?.map(p => ({ id: p.id, name: p.full_name })) });
+  return adminIds;
+}
+
+/** Get admin IDs for a ticket company - if it's a client company, returns admin of provider company. */
+async function getAdminsForTicketCompany(companyId: string): Promise<string[]> {
+  // Check if this company is a client
+  const { data: clientRelation } = await supabase
+    .from('client_companies')
+    .select('admin_company_id')
+    .eq('client_company_id', companyId)
+    .maybeSingle();
+
+  if (clientRelation?.admin_company_id) {
+    // It's a client company - get admin of provider
+    console.log('📍 Company is client, getting admin of provider:', clientRelation.admin_company_id);
+    return await getAdminIds(clientRelation.admin_company_id);
+  } else {
+    // It's a regular company - get its own admins
+    console.log('📍 Company is regular, getting its own admins');
+    return await getAdminIds(companyId);
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -67,7 +96,10 @@ export async function onTicketCreated(opts: {
   assigneeId:   string | null;
 }) {
   const { ticketId, ticketNumber, title, companyId, creatorId, assigneeId } = opts;
-  const admins = await getAdminIds(companyId);
+  console.log('🎫 onTicketCreated called:', { ticketNumber, title, companyId, creatorId });
+
+  const admins = await getAdminsForTicketCompany(companyId);
+  console.log('✉️ Admins to notify:', { adminCount: admins.length, admins });
 
   // Notificar a todos los admins (excepto si el admin mismo lo creó)
   await notifyMany(
@@ -126,7 +158,8 @@ export async function onTicketAssigned(opts: {
   }
 
   // A los admins si quien asignó no es admin
-  const admins = await getAdminIds(companyId);
+  const admins = await getAdminsForTicketCompany(companyId);
+
   if (!admins.includes(byUserId)) {
     const assigneeName = newAssigneeId ? 'un agente' : 'nadie';
     await notifyMany(
@@ -155,7 +188,8 @@ export async function onTicketStatusChanged(opts: {
   byUserId:    string;
 }) {
   const { ticketId, ticketNumber, title, companyId, oldStatus, newStatus, creatorId, assigneeId, byUserId } = opts;
-  const admins = await getAdminIds(companyId);
+
+  const admins = await getAdminsForTicketCompany(companyId);
 
   const STATUS_LABELS: Record<string, string> = {
     open: 'Abierto', in_progress: 'En Progreso', resolved: 'Resuelto', closed: 'Cerrado',
@@ -216,7 +250,8 @@ export async function onTicketEscalated(opts: {
 
   if (newPriority !== 'critical') return; // Solo notificar escalaciones a Crítico
 
-  const admins = await getAdminIds(companyId);
+  const admins = await getAdminsForTicketCompany(companyId);
+
   const targets = [...admins];
   if (assigneeId) targets.push(assigneeId);
   if (creatorId)  targets.push(creatorId);

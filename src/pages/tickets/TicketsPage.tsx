@@ -44,6 +44,7 @@ export default function TicketsPage() {
   const [filterPriority, setFilterPriority] = useState<TicketPriority | ''>('');
   const [filterCategory, setFilterCategory] = useState<TicketCategory | ''>('');
   const [filterAssigned, setFilterAssigned] = useState<'all' | 'me' | 'unassigned'>('all');
+  const [filterCompany, setFilterCompany] = useState<string>('');
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
   const [showFilters, setShowFilters] = useState(false);
@@ -214,13 +215,23 @@ export default function TicketsPage() {
       filterAssigned === 'all' ? true :
       filterAssigned === 'me' ? (t.assigned_to === profile?.id || t.created_by === profile?.id) :
       !t.assigned_to;
+    const matchCompany = !filterCompany || (t.company as any)?.id === filterCompany;
     const created = t.created_at.slice(0, 10);
     const matchFrom = !filterDateFrom || created >= filterDateFrom;
     const matchTo = !filterDateTo || created <= filterDateTo;
-    return matchSearch && matchStatus && matchPriority && matchCategory && matchAssigned && matchFrom && matchTo;
+    return matchSearch && matchStatus && matchPriority && matchCategory && matchAssigned && matchCompany && matchFrom && matchTo;
   });
 
-  const activeFilters = [filterStatus, filterPriority, filterCategory, filterAssigned !== 'all' ? filterAssigned : '', filterDateFrom, filterDateTo].filter(Boolean).length;
+  // Get unique companies from filtered tickets for dropdown
+  const companies = Array.from(
+    new Map(
+      tickets
+        .filter((t) => (t.company as any)?.id && (t.company as any)?.name)
+        .map((t) => [(t.company as any).id, { id: (t.company as any).id, name: (t.company as any).name }])
+    ).values()
+  ).sort((a, b) => a.name.localeCompare(b.name));
+
+  const activeFilters = [filterStatus, filterPriority, filterCategory, filterAssigned !== 'all' ? filterAssigned : '', filterCompany, filterDateFrom, filterDateTo].filter(Boolean).length;
 
   return (
     <div className="space-y-4 sm:space-y-5">
@@ -381,6 +392,14 @@ export default function TicketsPage() {
               <option value="all">Todos los asignados</option>
               <option value="me">Mis tickets</option>
               <option value="unassigned">Sin asignar</option>
+            </select>
+            <select
+              value={filterCompany}
+              onChange={(e) => setFilterCompany(e.target.value)}
+              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">Todos los clientes</option>
+              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Desde</label>

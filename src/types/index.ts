@@ -84,6 +84,7 @@ export interface Ticket {
   creator?: Profile;
   assignee?: Profile;
   sla_record?: SLARecord;
+  company?: Company;
 }
 
 export interface TicketComment {
