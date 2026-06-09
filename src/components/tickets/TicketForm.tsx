@@ -82,8 +82,34 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
 
   useEffect(() => {
     if (!profile?.company_id) return;
-    supabase.from('profiles').select('*').eq('company_id', profile.company_id).eq('is_active', true)
-      .then(({ data }) => setUsers(data ?? []));
+
+    // Load users - admins see users from their company and client companies
+    (async () => {
+      let companyIds = new Set<string>();
+
+      if (profile.role === 'admin') {
+        companyIds.add(profile.company_id);
+        const { data: clientCompanies } = await supabase
+          .from('client_companies')
+          .select('client_company_id')
+          .eq('admin_company_id', profile.company_id);
+        if (clientCompanies) {
+          clientCompanies.forEach(c => companyIds.add(c.client_company_id));
+        }
+      } else {
+        companyIds.add(profile.company_id);
+      }
+
+      const companyIdArray = Array.from(companyIds);
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('company_id', companyIdArray)
+        .eq('is_active', true);
+      setUsers(data ?? []);
+    })();
+
     supabase.from('sla_policies').select('*').eq('company_id', profile.company_id)
       .then(({ data }) => setSlaPolicy(data ?? []));
 
@@ -92,7 +118,7 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         .order('created_at', { ascending: false })
         .then(({ data }) => setExistingAttachments((data ?? []) as TicketAttachment[]));
     }
-  }, [profile?.company_id, ticket?.id]);
+  }, [profile?.company_id, profile?.role, ticket?.id]);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));

@@ -5,13 +5,16 @@ import { RouterProvider, useRouter } from './contexts/RouterContext';
 import { BrandProvider } from './contexts/BrandContext';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/auth/LoginPage';
+import SignUpPage from './pages/auth/SignUpPage';
+import PricingPage from './pages/PricingPage';
+import PlansManagement from './pages/admin/PlansManagement';
+import UpgradeRequest from './pages/admin/UpgradeRequest';
 import DashboardPage from './pages/dashboard/DashboardPage';
 import TicketsPage from './pages/tickets/TicketsPage';
 import TicketDetailPage from './pages/tickets/TicketDetailPage';
 import NewTicketPage from './pages/tickets/NewTicketPage';
 import UsersPage from './pages/users/UsersPage';
-import CompaniesPage from './pages/companies/CompaniesPage';
-import SubscriptionsPage from './pages/subscriptions/SubscriptionsPage';
+import CompaniesAndPlans from './pages/companies/CompaniesAndPlans';
 import SLAPage from './pages/sla/SLAPage';
 import ActivitiesPage from './pages/activities/ActivitiesPage';
 import SettingsPage from './pages/settings/SettingsPage';
@@ -23,7 +26,10 @@ import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
 import TermsOfServicePage from './pages/legal/TermsOfServicePage';
 import PrivacyPolicyPage from './pages/legal/PrivacyPolicyPage';
+import SuspendedPage from './pages/SuspendedPage';
 import { NotificationsProvider } from './contexts/NotificationsContext';
+import PaginaClientes from './pages/agencia/PaginaClientes';
+import PaginaDespliegues from './pages/agencia/PaginaDespliegues';
 
 function AppRoutes() {
   const { user, loading, profile } = useAuth();
@@ -52,9 +58,16 @@ function AppRoutes() {
 
   if (route === 'forgot-password') return <ForgotPasswordPage />;
   if (route === 'reset-password') return <ResetPasswordPage />;
+  if (route === 'signup') return <SignUpPage />;
+  if (route === 'pricing') return <PricingPage />;
   if (!user || route === 'login') return <LoginPage />;
 
   const role = profile?.role ?? 'agent';
+
+  // Check if company is in maintenance mode (not paid) - superadmins can always access
+  if (profile?.company?.maintenance_mode && role !== 'superadmin') {
+    return <SuspendedPage />;
+  }
 
   function renderPage() {
     switch (route) {
@@ -64,8 +77,8 @@ function AppRoutes() {
       case 'ticket-detail': return <TicketDetailPage />;
       case 'new-ticket': return <NewTicketPage />;
       case 'users': return (role === 'admin' || role === 'superadmin') ? <UsersPage /> : <DashboardPage />;
-      case 'companies': return role === 'superadmin' ? <CompaniesPage /> : <DashboardPage />;
-      case 'subscriptions': return role === 'superadmin' ? <SubscriptionsPage /> : <DashboardPage />;
+      case 'companies': return role === 'superadmin' ? <CompaniesAndPlans /> : <DashboardPage />;
+      case 'subscriptions': return role === 'superadmin' ? <CompaniesAndPlans /> : <DashboardPage />;
       case 'sla': return role === 'admin' ? <SLAPage /> : <DashboardPage />;
       case 'activities': return (role === 'developer' || role === 'admin') ? <ActivitiesPage /> : <DashboardPage />;
       case 'audit': return (role === 'admin' || role === 'superadmin') ? <AuditLogsPage /> : <DashboardPage />;
@@ -73,6 +86,10 @@ function AppRoutes() {
       case 'branding': return role === 'admin' || role === 'superadmin' ? <BrandingPage /> : <DashboardPage />;
       case 'terms': return <TermsOfServicePage />;
       case 'privacy': return <PrivacyPolicyPage />;
+      case 'plans-management': return role === 'superadmin' ? <PlansManagement /> : <DashboardPage />;
+      case 'upgrade-plan': return (role === 'admin' || role === 'superadmin') ? <UpgradeRequest /> : <DashboardPage />;
+      case 'clientes': return role === 'admin' ? <PaginaClientes /> : <DashboardPage />;
+      case 'despliegues': return (role === 'admin' || role === 'developer') ? <PaginaDespliegues /> : <DashboardPage />;
       default: return <DashboardPage />;
     }
   }

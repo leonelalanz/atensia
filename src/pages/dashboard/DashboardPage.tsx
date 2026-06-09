@@ -147,11 +147,36 @@ export default function DashboardPage() {
 
   async function loadCompanyDashboard() {
     const cid = profile!.company_id!;
+    const isAdmin = profile!.role === 'admin';
+    const isDeveloper = profile!.role === 'developer';
+
+    // Get list of company IDs to query
+    let companyIds: string[] = [cid];
+    if (isAdmin) {
+      const { data: clientCompanies } = await supabase
+        .from('client_companies')
+        .select('client_company_id')
+        .eq('admin_company_id', cid);
+      if (clientCompanies) {
+        companyIds = [cid, ...clientCompanies.map(c => c.client_company_id)];
+      }
+    }
+
+    // Build query with appropriate company filter
+    const buildQuery = (status: string) => {
+      let q = supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('status', status);
+      if (!isDeveloper) {
+        // Admins see their company + client companies, non-admins use RLS
+        q = q.in('company_id', companyIds);
+      }
+      return q;
+    };
+
     const [openQ, inProgressQ, resolvedQ, closedQ] = await Promise.all([
-      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('company_id', cid).eq('status', 'open'),
-      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('company_id', cid).eq('status', 'in_progress'),
-      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('company_id', cid).eq('status', 'resolved'),
-      supabase.from('tickets').select('*', { count: 'exact', head: true }).eq('company_id', cid).eq('status', 'closed'),
+      buildQuery('open'),
+      buildQuery('in_progress'),
+      buildQuery('resolved'),
+      buildQuery('closed'),
     ]);
 
     const statList: StatCard[] = [
@@ -176,20 +201,33 @@ export default function DashboardPage() {
     setStats(statList);
 
     // Charts
-    const { data: byStatus } = await supabase.from('tickets').select('status').eq('company_id', cid);
-    buildStatusChart(byStatus ?? []);
-    const { data: byPriority } = await supabase.from('tickets').select('priority').eq('company_id', cid);
-    buildPriorityChart(byPriority ?? []);
-    await buildWeekChart(cid);
+    const buildChartQuery = (column: string) => {
+      let q = supabase.from('tickets').select(column);
+      if (!isDeveloper) {
+        q = q.in('company_id', companyIds);
+      }
+      return q;
+    };
 
+    const statusResult = await buildChartQuery('status');
+    buildStatusChart((statusResult.data ?? []) as unknown as { status: string }[]);
+    const priorityResult = await buildChartQuery('priority');
+    buildPriorityChart((priorityResult.data ?? []) as unknown as { priority: string }[]);
+    await buildWeekChart(isDeveloper ? null : companyIds[0]);
+
+    // Recent tickets
     let query = supabase
       .from('tickets')
       .select('*, creator:profiles!created_by(*), assignee:profiles!assigned_to(*), sla_record:sla_records(*)')
-      .eq('company_id', cid)
       .order('created_at', { ascending: false });
-    if (profile!.role !== 'admin') {
-      query = query.or(`created_by.eq.${profile!.id},assigned_to.eq.${profile!.id}`);
+
+    if (isDeveloper) {
+      // Developers see all tickets (RLS filters)
+    } else {
+      // Admins see their company + client companies
+      query = query.in('company_id', companyIds);
     }
+
     const { data: recent } = await query.limit(6);
     setRecentTickets((recent ?? []) as TicketType[]);
   }

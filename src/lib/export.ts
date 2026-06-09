@@ -107,6 +107,35 @@ export function exportCompaniesPDF(rows: Company[]) {
   printWindow(pdfHtml('Reporte de Empresas', ['Nombre', 'Plan', 'Estado', 'Color', 'Mant.', 'Creada'], trs));
 }
 
+export function exportCompaniesAndPlansCSV(rows: (Company & { subscription?: Subscription; admin_name?: string; admin_email?: string })[]) {
+  const headers = ['Nombre', 'Admin', 'Email Admin', 'Plan Suscripción', 'Monto', 'Estado Suscripción', 'Inicio Suscripción', 'Estado Empresa'];
+  const body = rows.map((c) => csvRow([
+    c.name,
+    c.admin_name ?? '—',
+    c.admin_email ?? '—',
+    PLAN_LABELS[c.subscription?.plan as string] ?? 'Sin plan',
+    c.subscription ? `${c.subscription.amount} ${c.subscription.currency}` : '—',
+    c.subscription ? STATUS_LABELS_SUB[c.subscription.status] ?? c.subscription.status : '—',
+    c.subscription ? c.subscription.start_date : '—',
+    STATUS_LABELS_COMP[c.status],
+  ]));
+  download([csvRow(headers), ...body].join('\n'), `empresas-planes_${today()}.csv`);
+}
+
+export function exportCompaniesAndPlansPDF(rows: (Company & { subscription?: Subscription; admin_name?: string; admin_email?: string })[]) {
+  const trs = rows.map((c) => `<tr>
+    <td>${c.name}</td>
+    <td>${c.admin_name ?? '—'}</td>
+    <td>${c.admin_email ?? '—'}</td>
+    <td>${PLAN_LABELS[c.subscription?.plan as string] ?? 'Sin plan'}</td>
+    <td>${c.subscription ? `${c.subscription.currency} ${c.subscription.amount.toFixed(2)}` : '—'}</td>
+    <td>${c.subscription ? STATUS_LABELS_SUB[c.subscription.status] ?? c.subscription.status : '—'}</td>
+    <td>${c.subscription ? c.subscription.start_date : '—'}</td>
+    <td>${STATUS_LABELS_COMP[c.status]}</td>
+  </tr>`).join('');
+  printWindow(pdfHtml('Reporte de Empresas y Planes', ['Nombre', 'Admin', 'Email', 'Plan', 'Monto', 'Estado Sub.', 'Inicio', 'Estado Emp.'], trs));
+}
+
 // ── TICKETS ────────────────────────────────────────────────────────────────
 
 export function exportTicketsCSV(rows: Ticket[]) {
@@ -185,4 +214,31 @@ export function exportActivitiesPDF(rows: ActivityLog[]) {
     trs,
     `Total de horas registradas: ${totalH.toFixed(1)}h`,
   ));
+}
+
+// ── CLIENTS ────────────────────────────────────────────────────────────────
+
+export function exportClientsCSV(rows: any[]) {
+  const headers = ['Nombre Empresa', 'Email Contacto', 'Contacto', 'Teléfono', 'Estado', 'Color'];
+  const body = rows.map((c) => csvRow([
+    c.client_company?.name ?? '',
+    c.client_contact_email,
+    c.client_contact_name,
+    c.client_contact_phone ?? '—',
+    c.status === 'active' ? 'Activo' : 'Suspendido',
+    c.client_company?.primary_color ?? '—',
+  ]));
+  download([csvRow(headers), ...body].join('\n'), `clientes_${today()}.csv`);
+}
+
+export function exportClientsPDF(rows: any[]) {
+  const trs = rows.map((c) => `<tr>
+    <td>${c.client_company?.name ?? ''}</td>
+    <td>${c.client_contact_email}</td>
+    <td>${c.client_contact_name}</td>
+    <td>${c.client_contact_phone ?? '—'}</td>
+    <td>${c.status === 'active' ? 'Activo' : 'Suspendido'}</td>
+    <td>${c.client_company?.primary_color ?? '—'}</td>
+  </tr>`).join('');
+  printWindow(pdfHtml('Reporte de Clientes', ['Empresa', 'Email', 'Contacto', 'Teléfono', 'Estado', 'Color'], trs));
 }

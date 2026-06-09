@@ -65,15 +65,36 @@ export default function TicketCard({ ticket, onRefresh }: TicketCardProps) {
   const loadUsers = useCallback(async () => {
     if (users.length > 0) return;
     setLoadingUsers(true);
+
+    let companyIds = new Set<string>();
+
+    if (profile?.role === 'admin' && profile?.company_id) {
+      // Admins can see users from their own company and all client companies
+      companyIds.add(profile.company_id);
+
+      const { data: clientCompanies } = await supabase
+        .from('client_companies')
+        .select('client_company_id')
+        .eq('admin_company_id', profile.company_id);
+      if (clientCompanies) {
+        clientCompanies.forEach(c => companyIds.add(c.client_company_id));
+      }
+    } else {
+      // Non-admins see only users from their company
+      companyIds.add(ticket.company_id);
+    }
+
+    const companyIdArray = Array.from(companyIds);
+
     const { data } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_emoji, avatar_color, role, email, company_id, is_active, created_at')
-      .eq('company_id', ticket.company_id)
+      .in('company_id', companyIdArray)
       .eq('is_active', true)
       .order('full_name');
     setUsers((data ?? []) as Profile[]);
     setLoadingUsers(false);
-  }, [ticket.company_id, users.length]);
+  }, [ticket.company_id, users.length, profile?.company_id, profile?.role]);
 
   async function toggleDropdown(e: React.MouseEvent) {
     e.stopPropagation();
@@ -146,6 +167,13 @@ export default function TicketCard({ ticket, onRefresh }: TicketCardProps) {
         </div>
         <SLABadge slaRecord={ticket.sla_record} compact />
       </div>
+
+      {/* Company info */}
+      {(ticket.company as any)?.name && (
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-1.5">
+          Empresa: <span className="font-medium text-gray-600 dark:text-gray-300">{(ticket.company as any).name}</span>
+        </p>
+      )}
 
       {/* Title */}
       <h3 className="font-semibold text-gray-900 dark:text-white text-sm mb-2 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors line-clamp-2">

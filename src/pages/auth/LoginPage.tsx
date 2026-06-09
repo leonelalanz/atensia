@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-  Eye, EyeOff, Zap, Ticket, Clock, Building2,
+  Eye, EyeOff, Ticket, Clock, Building2,
   TrendingUp, AlertCircle, CheckCircle2, ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,16 +8,6 @@ import { useRouter } from '../../contexts/RouterContext';
 import { useBrand } from '../../contexts/BrandContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 
-// Demo profiles are now loaded securely from the backend
-// See SECURITY.md for details on demo account management
-const DEMO_PROFILES: Array<{
-  email: string;
-  label: string;
-  name: string;
-  badgeColor: string;
-  dot: string;
-  ring: string;
-}> = [];
 
 const METRICS = [
   { label: 'Tickets resueltos', value: '1,240', icon: CheckCircle2, color: 'text-green-400', bg: 'bg-green-500/10' },
@@ -61,7 +51,6 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [loading, setLoading]   = useState(false);
-  const [demoLoading, setDemoLoading] = useState<string | null>(null);
   const [error, setError]       = useState('');
   const [logoError, setLogoError] = useState(false);
 
@@ -79,46 +68,7 @@ export default function LoginPage() {
     setLoading(false);
   }
 
-  async function handleDemoLogin(email: string) {
-    setDemoLoading(email);
-    setError('');
-    try {
-      // Fetch demo credentials from Supabase Edge Function
-      // Must use import.meta.env.VITE_SUPABASE_URL for construction
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) {
-        throw new Error('Supabase URL not configured');
-      }
-
-      const functionUrl = `${supabaseUrl}/functions/v1/demo-credentials`;
-      const response = await fetch(functionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to get demo credentials');
-      }
-
-      const { password } = await response.json();
-      const { error: err } = await signIn(email, password);
-
-      if (err) {
-        setError('No se pudo iniciar sesión con esta cuenta demo.');
-        setDemoLoading(null);
-      } else {
-        navigate('dashboard');
-      }
-    } catch (err) {
-      console.error('Demo login error:', err);
-      setError(err instanceof Error ? err.message : 'Demo mode is not available. Please contact support.');
-      setDemoLoading(null);
-    }
-  }
-
-  const anyLoading = loading || demoLoading !== null;
+  const anyLoading = loading;
 
   return (
     <div className="min-h-screen flex">
@@ -338,9 +288,13 @@ export default function LoginPage() {
           </form>
 
           <div className="flex items-center justify-between mt-4">
-            <p className="text-xs text-gray-400 dark:text-gray-600">
-              ¿No tienes cuenta? Contacta a tu admin.
-            </p>
+            <button
+              type="button"
+              onClick={() => navigate('signup')}
+              className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline transition-colors"
+            >
+              ¿No tienes cuenta? Regístrate
+            </button>
             <button
               type="button"
               onClick={(e) => { e.preventDefault(); navigate('forgot-password'); }}
@@ -350,62 +304,6 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* Divider */}
-          <div className="flex items-center gap-3 my-6">
-            <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
-            <div className="flex items-center gap-1.5">
-              <Zap size={11} className="text-yellow-500" />
-              <span className="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                Acceso demo
-              </span>
-            </div>
-            <div className="flex-1 h-px bg-gray-100 dark:bg-gray-800" />
-          </div>
-
-          {/* Demo profiles */}
-          <div className="grid grid-cols-2 gap-2">
-            {DEMO_PROFILES.length > 0 ? (
-              DEMO_PROFILES.map((profile) => {
-                const isActive = demoLoading === profile.email;
-                return (
-                  <button
-                    key={profile.email}
-                    onClick={() => handleDemoLogin(profile.email)}
-                    disabled={anyLoading}
-                    className={[
-                      'flex flex-col items-start gap-2 p-3 rounded-xl border text-left transition-all duration-150',
-                      'border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900',
-                      anyLoading
-                        ? 'opacity-50 cursor-not-allowed'
-                        : `cursor-pointer hover:bg-white dark:hover:bg-gray-800 hover:shadow-sm hover:ring-2 ${profile.ring}`,
-                    ].join(' ')}
-                  >
-                    <div className="flex items-center justify-between w-full">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${profile.badgeColor}`}>
-                        {profile.label}
-                      </span>
-                      {isActive
-                        ? <LoadingSpinner size="sm" />
-                        : <span className={`w-1.5 h-1.5 rounded-full ${profile.dot}`} />
-                      }
-                    </div>
-                    <div>
-                      <p className="text-xs font-semibold text-gray-800 dark:text-gray-200 leading-tight">
-                        {profile.name}
-                      </p>
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate mt-0.5">
-                        {profile.email}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="col-span-2 text-center py-4">
-                <p className="text-xs text-gray-500 dark:text-gray-400">Demo accounts not available</p>
-              </div>
-            )}
-          </div>
 
         </div>
       </div>

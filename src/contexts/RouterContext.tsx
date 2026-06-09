@@ -8,29 +8,41 @@ interface RouterContextType {
 }
 
 const ROUTE_TO_PATH: Record<Route, string> = {
-  'login':          '/login',
-  'forgot-password':'/forgot-password',
-  'reset-password': '/reset-password',
-  'dashboard':      '/dashboard',
-  'tickets':        '/tickets',
-  'ticket-detail':  '/tickets/:id',
-  'new-ticket':     '/tickets/new',
-  'users':          '/users',
-  'companies':      '/companies',
-  'subscriptions':  '/subscriptions',
-  'sla':            '/sla',
-  'activities':     '/activities',
-  'audit':          '/audit',
-  'settings':       '/settings',
-  'branding':       '/branding',
-  'help':           '/help',
+  'login':             '/login',
+  'signup':            '/signup',
+  'forgot-password':   '/forgot-password',
+  'reset-password':    '/reset-password',
+  'pricing':           '/pricing',
+  'dashboard':         '/dashboard',
+  'tickets':           '/tickets',
+  'ticket-detail':     '/tickets/:id',
+  'new-ticket':        '/tickets/new',
+  'users':             '/users',
+  'companies':         '/companies',
+  'subscriptions':     '/subscriptions',
+  'sla':               '/sla',
+  'activities':        '/activities',
+  'audit':             '/audit',
+  'settings':          '/settings',
+  'branding':          '/branding',
+  'help':              '/help',
+  'terms':             '/terms',
+  'privacy':           '/privacy',
+  'plans-management':  '/admin/plans',
+  'upgrade-plan':      '/admin/upgrade',
+  'clientes':          '/clientes',
+  'despliegues':       '/despliegues',
 };
 
 function pathToRoute(pathname: string): { route: Route; params: Record<string, string> } {
   if (pathname === '/' || pathname === '' || pathname === '/dashboard') return { route: 'dashboard', params: {} };
   if (pathname === '/login') return { route: 'login', params: {} };
+  if (pathname === '/signup') return { route: 'signup', params: {} };
+  if (pathname === '/pricing') return { route: 'pricing', params: {} };
   if (pathname === '/forgot-password') return { route: 'forgot-password', params: {} };
   if (pathname === '/reset-password') return { route: 'reset-password', params: {} };
+  if (pathname === '/admin/plans') return { route: 'plans-management', params: {} };
+  if (pathname === '/admin/upgrade') return { route: 'upgrade-plan', params: {} };
   if (pathname === '/tickets/new') return { route: 'new-ticket', params: {} };
   const ticketDetail = pathname.match(/^\/tickets\/([^/]+)$/);
   if (ticketDetail) return { route: 'ticket-detail', params: { id: ticketDetail[1] } };
@@ -44,6 +56,10 @@ function pathToRoute(pathname: string): { route: Route; params: Record<string, s
   if (pathname === '/settings') return { route: 'settings', params: {} };
   if (pathname === '/branding') return { route: 'branding', params: {} };
   if (pathname === '/help') return { route: 'help', params: {} };
+  if (pathname === '/terms') return { route: 'terms', params: {} };
+  if (pathname === '/privacy') return { route: 'privacy', params: {} };
+  if (pathname === '/clientes') return { route: 'clientes', params: {} };
+  if (pathname === '/despliegues') return { route: 'despliegues', params: {} };
   return { route: 'dashboard', params: {} };
 }
 

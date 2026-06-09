@@ -58,46 +58,85 @@ export default function TicketsPage() {
     if (!silent) setLoading(true);
 
     try {
-      let query = supabase
-        .from('tickets')
-        .select('*')
-        .order('created_at', { ascending: false });
+      let ticketsData: TicketType[] = [];
+      let error: any = null;
 
       if (profile.role === 'superadmin') {
-        // Super admin sees all tickets from all companies
-      } else if (profile.role === 'admin' && profile.company_id) {
-        // Admin sees only tickets from their company
-        query = query.eq('company_id', profile.company_id);
-      } else {
-        // Agent and developer see only tickets from their company
-        query = query.eq('company_id', profile.company_id!);
-      }
+        // Superadmin sees all tickets
+        const result = await supabase
+          .from('tickets')
+          .select('*, company:companies(id, name)')
+          .order('created_at', { ascending: false });
+        ticketsData = result.data || [];
+        error = result.error;
+      } else if (profile.role === 'admin') {
+        // Admin sees tickets from their company AND all client companies
+        // Get list of client companies first
+        const { data: clientCompanies } = await supabase
+          .from('client_companies')
+          .select('client_company_id')
+          .eq('admin_company_id', profile.company_id!);
 
-      const { data: ticketsData, error } = await query;
+        const clientIds = clientCompanies?.map(c => c.client_company_id) || [];
+        const allCompanyIds = [profile.company_id!, ...clientIds];
+
+        const result = await supabase
+          .from('tickets')
+          .select('*, company:companies(id, name)')
+          .in('company_id', allCompanyIds)
+          .order('created_at', { ascending: false });
+
+        ticketsData = result.data || [];
+        error = result.error;
+      } else {
+        // Agent and developer see tickets from their company + tickets assigned to them
+        // Don't filter here - let RLS handle it (they can see own company + assigned tickets)
+        const result = await supabase
+          .from('tickets')
+          .select('*, company:companies(id, name)')
+          .order('created_at', { ascending: false });
+
+        ticketsData = result.data || [];
+        error = result.error;
+      }
 
       if (error) {
         console.error('Error loading tickets:', error);
         setTickets([]);
+      } else if (!ticketsData || ticketsData.length === 0) {
+        console.log('No tickets found for superadmin');
+        setTickets([]);
       } else {
         // Load profiles and SLA records
-        const { data: allProfiles } = await supabase.rpc('get_all_profiles');
+        const { data: allProfiles, error: profileError } = await supabase.rpc('get_all_profiles');
+        if (profileError) {
+          console.error('Error loading profiles:', profileError);
+          setTickets([]);
+          return;
+        }
+
         const profileMap = new Map(allProfiles?.map((p: any) => [p.id, p]) ?? []);
 
-        const ticketIds = ticketsData?.map((t: any) => t.id) ?? [];
-        const { data: slaRecords } = await supabase
+        const ticketIds = ticketsData.map((t: any) => t.id);
+        const { data: slaRecords, error: slaError } = await supabase
           .from('sla_records')
           .select('*')
           .in('ticket_id', ticketIds);
 
+        if (slaError) {
+          console.error('Error loading SLA records:', slaError);
+        }
+
         const slaMap = new Map(slaRecords?.map((s: any) => [s.ticket_id, s]) ?? []);
 
-        const enrichedTickets = (ticketsData ?? []).map((ticket: any) => ({
+        const enrichedTickets = ticketsData.map((ticket: any) => ({
           ...ticket,
           creator: ticket.created_by ? profileMap.get(ticket.created_by) : null,
           assignee: ticket.assigned_to ? profileMap.get(ticket.assigned_to) : null,
           sla_record: slaMap.get(ticket.id) ?? null
         }));
 
+        console.log('Loaded tickets:', enrichedTickets.length);
         setTickets(enrichedTickets as TicketType[]);
       }
     } catch (err) {

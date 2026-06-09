@@ -65,6 +65,9 @@ export default function TicketDetailPage() {
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assignDropRef = useRef<HTMLDivElement>(null);
+  const [editingDescription, setEditingDescription] = useState(false);
+  const [descriptionValue, setDescriptionValue] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
 
   // Quick assign state
   const [assignOpen, setAssignOpen] = useState(false);
@@ -195,14 +198,40 @@ export default function TicketDetailPage() {
 
   async function openAssignDropdown() {
     if (assigning) return;
-    if (!assignOpen && assignUsers.length === 0 && ticket) {
+    if (!assignOpen && assignUsers.length === 0 && ticket && profile) {
       setLoadingAssignUsers(true);
-      const { data } = await supabase
+
+      let companyIds = new Set<string>();
+
+      if (profile.role === 'admin' && profile.company_id) {
+        // Admins can see:
+        // 1. Users from their own company (developers, agents, etc.)
+        companyIds.add(profile.company_id);
+
+        // 2. Users from all their client companies
+        const { data: clientCompanies } = await supabase
+          .from('client_companies')
+          .select('client_company_id')
+          .eq('admin_company_id', profile.company_id);
+        if (clientCompanies) {
+          clientCompanies.forEach(c => companyIds.add(c.client_company_id));
+        }
+      } else {
+        // Non-admins see only users from their company
+        companyIds.add(ticket.company_id);
+      }
+
+      const companyIdArray = Array.from(companyIds);
+      console.log('🔍 Assign dropdown - company_ids:', companyIdArray, 'Profile role:', profile?.role);
+
+      const { data, error } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_emoji, avatar_color, role, email, company_id, is_active, created_at')
-        .eq('company_id', ticket.company_id)
+        .in('company_id', companyIdArray)
         .eq('is_active', true)
         .order('full_name');
+
+      console.log('🔍 Assign users query result:', data, 'Error:', error);
       setAssignUsers((data ?? []) as Profile[]);
       setLoadingAssignUsers(false);
     }
@@ -245,6 +274,27 @@ export default function TicketDetailPage() {
     }
 
     setAssigning(false);
+  }
+
+  async function handleSaveDescription() {
+    if (!ticket) return;
+    setSavingDescription(true);
+    try {
+      const { error } = await supabase
+        .from('tickets')
+        .update({ description: descriptionValue, updated_at: new Date().toISOString() })
+        .eq('id', ticket.id);
+
+      if (error) throw error;
+
+      setTicket((prev) => prev ? { ...prev, description: descriptionValue } : prev);
+      setEditingDescription(false);
+    } catch (err) {
+      console.error('Error saving description:', err);
+      alert('Error guardando descripción');
+    } finally {
+      setSavingDescription(false);
+    }
   }
 
   const canEdit = profile?.role === 'admin' ||
@@ -306,9 +356,44 @@ export default function TicketDetailPage() {
         <div className="lg:col-span-2 space-y-4 sm:space-y-5">
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5 sm:p-6">
             <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white mb-3">{ticket.title}</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed">
-              {ticket.description || 'Sin descripción.'}
-            </p>
+            {editingDescription ? (
+              <div className="space-y-3">
+                <textarea
+                  value={descriptionValue}
+                  onChange={(e) => setDescriptionValue(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none"
+                  placeholder="Agregar descripción..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setEditingDescription(false)}
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={handleSaveDescription}
+                    disabled={savingDescription}
+                    className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {savingDescription ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                    Guardar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => {
+                  if (canEdit) {
+                    setEditingDescription(true);
+                    setDescriptionValue(ticket.description || '');
+                  }
+                }}
+                className={`text-sm text-gray-600 dark:text-gray-400 whitespace-pre-wrap leading-relaxed ${canEdit ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 p-3 rounded-lg transition-colors' : ''}`}
+              >
+                {ticket.description || <span className="text-gray-400 dark:text-gray-500">Sin descripción. {canEdit && <span className="text-xs">(Haz clic para agregar)</span>}</span>}
+              </div>
+            )}
           </div>
 
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">

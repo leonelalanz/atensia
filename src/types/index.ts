@@ -133,10 +133,114 @@ export interface ActivityLog {
   ticket?: Ticket;
 }
 
+// ============================================================
+// AGENCY STRUCTURE
+// ============================================================
+
+export interface ClientCompany {
+  id: string;
+  admin_company_id: string;
+  client_company_id: string;
+  client_contact_name: string;
+  client_contact_email: string;
+  client_contact_phone: string;
+  notes: string;
+  status: 'active' | 'inactive' | 'suspended';
+  created_at: string;
+  updated_at: string;
+  admin_company?: Company;
+  client_company?: Company;
+}
+
+export interface DeploymentPlatform {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type DeploymentStatus = 'draft' | 'submitted' | 'in_review' | 'approved' | 'rejected' | 'live' | 'rollback';
+
+export interface Deployment {
+  id: string;
+  client_company_id: string;
+  platform_id: string;
+  version: string;
+  build_number: string;
+  release_notes: string;
+  status: DeploymentStatus;
+  submitted_by: string | null;
+  submitted_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  live_at: string | null;
+  rollback_at: string | null;
+  rollback_reason: string | null;
+  created_at: string;
+  updated_at: string;
+  platform?: DeploymentPlatform;
+  submitter?: Profile;
+  approver?: Profile;
+  client?: Company;
+}
+
+export interface TestPlatform {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+export type TestBuildStatus = 'created' | 'distributed' | 'testing' | 'completed' | 'failed' | 'archived';
+
+export interface TestBuild {
+  id: string;
+  client_company_id: string;
+  platform_id: string;
+  version: string;
+  build_number: string;
+  test_url: string;
+  build_file_url: string;
+  test_notes: string;
+  status: TestBuildStatus;
+  uploaded_by: string | null;
+  uploaded_at: string;
+  created_at: string;
+  updated_at: string;
+  platform?: TestPlatform;
+  uploader?: Profile;
+  client?: Company;
+}
+
+export type ReportType = 'tickets' | 'deployments' | 'testing' | 'combined' | 'custom';
+
+export interface Report {
+  id: string;
+  admin_company_id: string;
+  client_company_id: string | null;
+  title: string;
+  report_type: ReportType;
+  period_start: string;
+  period_end: string;
+  data: Record<string, any>;
+  generated_by: string;
+  created_at: string;
+  updated_at: string;
+  admin_company?: Company;
+  client_company?: Company;
+  generator?: Profile;
+}
+
 export type Route =
   | 'login'
+  | 'signup'
   | 'forgot-password'
   | 'reset-password'
+  | 'pricing'
   | 'dashboard'
   | 'tickets'
   | 'ticket-detail'
@@ -149,7 +253,13 @@ export type Route =
   | 'audit'
   | 'settings'
   | 'help'
-  | 'branding';
+  | 'branding'
+  | 'terms'
+  | 'privacy'
+  | 'plans-management'
+  | 'upgrade-plan'
+  | 'clientes'
+  | 'despliegues';
 
 export interface AppNotification {
   id: string;

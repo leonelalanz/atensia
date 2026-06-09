@@ -355,51 +355,81 @@ export default function CompaniesPage() {
 
       {loading ? (
         <div className="flex justify-center py-16"><LoadingSpinner size="lg" /></div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800">
+          <p className="text-gray-500 dark:text-gray-400">No hay empresas que coincidan con los filtros</p>
+        </div>
       ) : (
-        <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filtered.map((c) => (
-            <div key={c.id} className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-5">
-              <div className="flex items-start gap-3 mb-4">
-                {c.logo_url ? (
-                  <img src={c.logo_url} alt={c.name} className="w-11 h-11 rounded-xl object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: c.primary_color + '22' }}>
-                    <Building2 size={20} style={{ color: c.primary_color }} />
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-gray-900 dark:text-white truncate">{c.name}</h3>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <Badge variant={PLAN_BADGES[c.plan]}>{PLANS.find((p) => p.value === c.plan)?.label}</Badge>
-                    <Badge variant={STATUS_BADGES[c.status]}>{STATUS_LABELS[c.status]}</Badge>
-                    {c.maintenance_mode && <Badge variant="warning">Mant.</Badge>}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: c.primary_color }} />
-                <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">{c.primary_color}</span>
-                <span className="text-xs text-gray-300 dark:text-gray-600 ml-auto">
-                  {new Date(c.created_at).toLocaleDateString('es-ES')}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <button onClick={() => openEdit(c)} disabled={saving}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors disabled:opacity-50">
-                  <Pencil size={13} />Editar
-                </button>
-                <button onClick={() => toggleMaintenance(c)} disabled={saving}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors disabled:opacity-50 ${c.maintenance_mode ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}>
-                  <Wrench size={13} />
-                  {c.maintenance_mode ? 'Desactivar' : 'Modo mant.'}
-                </button>
-                <button onClick={() => openDeleteConfirm(c)} disabled={deleting}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50 ml-auto">
-                  <Trash2 size={13} />Eliminar
-                </button>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-gray-200 dark:border-gray-800">
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Empresa</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Plan</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Estado</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Admin</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Creada</th>
+                  <th className="px-6 py-3 text-right text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((c) => (
+                  <tr key={c.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        {c.logo_url ? (
+                          <img src={c.logo_url} alt={c.name} className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ backgroundColor: c.primary_color + '22' }}>
+                            <Building2 size={16} style={{ color: c.primary_color }} />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="font-medium text-gray-900 dark:text-white truncate">{c.name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 font-mono">{c.primary_color}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant={PLAN_BADGES[c.plan]}>{PLANS.find((p) => p.value === c.plan)?.label}</Badge>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <Badge variant={STATUS_BADGES[c.status]}>{STATUS_LABELS[c.status]}</Badge>
+                        {c.maintenance_mode && <Badge variant="warning">Mant.</Badge>}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm">
+                        <p className="font-medium text-gray-900 dark:text-white">{c.admin_name}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{c.admin_email}</p>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      {new Date(c.created_at).toLocaleDateString('es-ES')}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center justify-end gap-2">
+                        <button onClick={() => openEdit(c)} disabled={saving}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50">
+                          <Pencil size={13} />Editar
+                        </button>
+                        <button onClick={() => toggleMaintenance(c)} disabled={saving} title={c.maintenance_mode ? 'Desactivar modo mantenimiento' : 'Activar modo mantenimiento'}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-colors disabled:opacity-50 ${c.maintenance_mode ? 'text-amber-600 bg-amber-50 dark:bg-amber-900/20 hover:bg-amber-100' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'}`}>
+                          <Wrench size={13} />
+                        </button>
+                        <button onClick={() => openDeleteConfirm(c)} disabled={deleting}
+                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors disabled:opacity-50">
+                          <Trash2 size={13} />Eliminar
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
