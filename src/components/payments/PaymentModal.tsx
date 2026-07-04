@@ -1,24 +1,110 @@
 import React, { useState } from 'react';
-import { X, Copy, Check } from 'lucide-react';
+import { Copy, Check, Upload, AlertCircle } from 'lucide-react';
 import Modal from '../ui/Modal';
 import { PAYMENT_METHODS } from '../../lib/paymentMethods';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { Currency, getLatestExchangeRate } from '../../lib/currencyService';
 
 interface PaymentModalProps {
   open: boolean;
   onClose: () => void;
   plan: any;
+  selectedCurrency?: Currency;
 }
 
-export default function PaymentModal({ open, onClose, plan }: PaymentModalProps) {
+export default function PaymentModal({ open, onClose, plan, selectedCurrency = 'USD' }: PaymentModalProps) {
+  const { profile } = useAuth();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
+  const [proofFile, setProofFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [exchangeRate, setExchangeRate] = useState(4500000);
 
   const method = PAYMENT_METHODS.find(m => m.id === selectedMethod);
+
+  React.useEffect(() => {
+    if (open) {
+      getLatestExchangeRate().then(rate => setExchangeRate(rate));
+    }
+  }, [open]);
 
   const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        setUploadError('El archivo no debe exceder 5MB');
+        return;
+      }
+      if (!['image/png', 'image/jpeg', 'image/jpg'].includes(file.type)) {
+        setUploadError('Solo se aceptan PNG, JPG, JPEG');
+        return;
+      }
+      setProofFile(file);
+      setUploadError(null);
+    }
+  };
+
+  const handleUploadProof = async () => {
+    if (!proofFile || !profile?.id) return;
+
+    try {
+      setUploading(true);
+      setUploadError(null);
+
+      // Upload image to storage
+      const fileName = `${profile.id}-${Date.now()}.${proofFile.name.split('.').pop()}`;
+      const { error: storageError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(fileName, proofFile);
+
+      if (storageError) throw storageError;
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(fileName);
+
+      // Save payment proof to database
+      // Determinar el plan ID basado en el nombre o estructura
+      let planId = 'basic';
+      if (plan.name?.toLowerCase().includes('professional')) planId = 'professional';
+      else if (plan.name?.toLowerCase().includes('enterprise')) planId = 'enterprise';
+      else if (plan.id) planId = plan.id; // Si tiene id propio, úsalo
+
+      const { error: dbError } = await supabase.from('payment_proofs').insert({
+        company_id: profile.company_id,
+        plan: planId,
+        plan_price: plan.price,
+        currency: selectedCurrency,
+        payment_method: method?.name,
+        proof_url: urlData.publicUrl,
+        proof_file_name: proofFile.name,
+        status: 'pending',
+      });
+
+      if (dbError) throw dbError;
+
+      setUploadSuccess(true);
+      setProofFile(null);
+
+      setTimeout(() => {
+        onClose();
+      }, 2000);
+    } catch (error: any) {
+      console.error('Error uploading proof:', error);
+      setUploadError(error.message || 'Error al subir el comprobante');
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -33,9 +119,15 @@ export default function PaymentModal({ open, onClose, plan }: PaymentModalProps)
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-600 dark:text-gray-400">Monto a pagar</p>
-              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                ${plan.price} USD
-              </p>
+              {selectedCurrency === 'USD' ? (
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  ${plan.price} USD
+                </p>
+              ) : (
+                <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                  {Math.round(plan.price * exchangeRate).toLocaleString('es-VE')} VES
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -64,7 +156,12 @@ export default function PaymentModal({ open, onClose, plan }: PaymentModalProps)
           <div className="space-y-4">
             {/* Back Button */}
             <button
-              onClick={() => setSelectedMethod(null)}
+              onClick={() => {
+                setSelectedMethod(null);
+                setProofFile(null);
+                setUploadError(null);
+                setUploadSuccess(false);
+              }}
               className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
             >
               ← Cambiar método de pago
@@ -102,9 +199,15 @@ export default function PaymentModal({ open, onClose, plan }: PaymentModalProps)
                     Monto a enviar
                   </p>
                   <div className="bg-white dark:bg-gray-900 rounded-lg p-3 text-center">
-                    <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      ${plan.price} USD
-                    </p>
+                    {selectedCurrency === 'USD' ? (
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        ${plan.price} USD
+                      </p>
+                    ) : (
+                      <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                        {Math.round(plan.price * exchangeRate).toLocaleString('es-VE')} VES
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -156,22 +259,46 @@ export default function PaymentModal({ open, onClose, plan }: PaymentModalProps)
             </div>
 
             {/* Proof Upload */}
-            <div>
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Subir Comprobante
-              </p>
-              <label className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
-                <input type="file" accept="image/*" className="hidden" />
-                <div>
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Haz click para seleccionar o arrastra tu imagen
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    PNG, JPG, JPEG (máx. 5MB)
-                  </p>
-                </div>
-              </label>
-            </div>
+            {!uploadSuccess && (
+              <div>
+                <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Subir Comprobante
+                </p>
+                {uploadError && (
+                  <div className="mb-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-3 flex gap-2">
+                    <AlertCircle size={18} className="text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-red-900 dark:text-red-100">{uploadError}</p>
+                  </div>
+                )}
+                <label className="border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-xl p-6 text-center cursor-pointer hover:border-blue-500 dark:hover:border-blue-500 transition-colors">
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    disabled={uploading}
+                  />
+                  <div>
+                    <Upload size={24} className="mx-auto mb-2 text-gray-400" />
+                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {proofFile ? proofFile.name : 'Haz click para seleccionar o arrastra tu imagen'}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      PNG, JPG, JPEG (máx. 5MB)
+                    </p>
+                  </div>
+                </label>
+              </div>
+            )}
+
+            {/* Success Message */}
+            {uploadSuccess && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-xl p-4">
+                <p className="text-sm text-green-900 dark:text-green-100">
+                  <span className="font-semibold">✓ Comprobante enviado correctamente.</span> Nuestro equipo lo validará pronto.
+                </p>
+              </div>
+            )}
 
             {/* Note */}
             <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4">
@@ -190,12 +317,21 @@ export default function PaymentModal({ open, onClose, plan }: PaymentModalProps)
           >
             Cancelar
           </button>
-          {selectedMethod && (
+          {selectedMethod && proofFile && !uploadSuccess && (
+            <button
+              onClick={handleUploadProof}
+              disabled={uploading}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white text-sm font-medium transition-colors"
+            >
+              {uploading ? 'Enviando...' : 'Enviar Comprobante'}
+            </button>
+          )}
+          {uploadSuccess && (
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-medium transition-colors"
             >
-              He Completado el Pago
+              Cerrar
             </button>
           )}
         </div>

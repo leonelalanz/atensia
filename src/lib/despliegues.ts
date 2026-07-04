@@ -7,7 +7,7 @@ export async function crearDespliegue(datos: any) {
     const { data, error } = await supabase
       .rpc('insert_deployment_unified', {
         p_client_company_id: datos.idClienteEmpresa,
-        p_platform_id: datos.idPlataforma,
+        p_platform_id: datos.idPlataforma || null,
         p_deployment_type: datos.tipo || 'production',
         p_version: datos.version,
         p_build_number: datos.numeroCompilacion,
@@ -16,6 +16,7 @@ export async function crearDespliegue(datos: any) {
         p_test_url: datos.urlTest || '',
         p_build_file_url: datos.urlArchivoCompilacion || '',
         p_test_notes: datos.notas || '',
+        p_server_name: datos.servidor || null,
       });
 
     if (error) throw error;

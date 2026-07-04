@@ -12,6 +12,7 @@ interface CommentSectionProps {
   ticketNumber?: string;
   ticketTitle?:  string;
   companyId?:    string;
+  companyName?:  string;
   creatorId?:    string | null;
   assigneeId?:   string | null;
 }
@@ -34,6 +35,7 @@ export default function CommentSection({
   ticketNumber = '',
   ticketTitle  = '',
   companyId    = '',
+  companyName  = '',
   creatorId    = null,
   assigneeId   = null,
 }: CommentSectionProps) {
@@ -159,17 +161,28 @@ export default function CommentSection({
       await uploadCommentFiles(newComment.id);
 
       // Notificaciones de comentario
+      console.log('💬 Comment added - checking for notifications:', { companyId, ticketNumber });
       if (companyId) {
-        await onCommentAdded({
-          ticketId,
-          ticketNumber,
-          title:       ticketTitle,
-          companyId,
-          creatorId,
-          assigneeId,
-          commenterId: profile!.id,
-          isInternal,
-        });
+        console.log('📧 Sending comment notification...');
+        try {
+          await onCommentAdded({
+            ticketId,
+            ticketNumber,
+            title:        ticketTitle,
+            companyId,
+            companyName,
+            creatorId,
+            assigneeId,
+            commenterId:  profile!.id,
+            commenterName: profile!.full_name,
+            isInternal,
+          });
+          console.log('✅ Comment notification sent');
+        } catch (err) {
+          console.error('❌ Error sending comment notification:', err);
+        }
+      } else {
+        console.warn('⚠️ No companyId, skipping notification');
       }
 
       setContent('');

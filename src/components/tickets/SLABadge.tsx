@@ -35,8 +35,8 @@ const STATUS_CONFIG: Record<SLAStatus, {
   pending: {
     icon: Clock,
     label: 'Pendiente',
-    className: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    timeClass: 'text-gray-500 dark:text-gray-400',
+    className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+    timeClass: 'text-violet-600 dark:text-violet-400',
   },
 };
 

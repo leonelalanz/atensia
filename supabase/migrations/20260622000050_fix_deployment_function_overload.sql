@@ -1,29 +1,12 @@
--- Unify test_builds and deployments into a single deployments table
--- Add deployment_type field: 'test' or 'production'
--- Update platforms to match actual platforms
+-- Fix function overloading issue by dropping the 10-parameter version
+-- and keeping only the 11-parameter version with p_server_name
 
--- Add deployment_type column if not exists
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS deployment_type text NOT NULL DEFAULT 'production'
-  CHECK (deployment_type IN ('test', 'production'));
+-- Drop the 10-parameter overload
+DROP FUNCTION IF EXISTS insert_deployment_unified(
+  uuid, uuid, text, text, text, uuid, text, text, text, text
+) CASCADE;
 
--- Add test-specific fields to deployments
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS test_url text DEFAULT '';
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS build_file_url text DEFAULT '';
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS test_notes text DEFAULT '';
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS uploaded_by uuid REFERENCES profiles(id);
-ALTER TABLE deployments ADD COLUMN IF NOT EXISTS server_name text;
-
--- Add correct platforms (commented DELETE to avoid foreign key conflicts with existing deployments)
--- DELETE FROM deployment_platforms;
-
-INSERT INTO deployment_platforms (name, description) VALUES
-  ('iOS - TestFlight', 'Apple TestFlight for iOS testing'),
-  ('iOS - App Store', 'Apple App Store Production'),
-  ('Android - TestFairy', 'TestFairy for Android testing'),
-  ('Android - Google Play', 'Google Play Store Production')
-ON CONFLICT (name) DO NOTHING;
-
--- Create unified RPC function for creating deployments
+-- Recreate the correct 11-parameter version
 CREATE OR REPLACE FUNCTION insert_deployment_unified(
   p_client_company_id uuid,
   p_platform_id uuid,

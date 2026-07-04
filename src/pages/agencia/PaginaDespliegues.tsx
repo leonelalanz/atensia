@@ -28,6 +28,7 @@ export default function PaginaDespliegues() {
   const [formulario, setFormulario] = useState({
     tipo: 'production',
     idPlataforma: '',
+    servidor: '',
     version: '',
     numeroCompilacion: '',
     notasLanzamiento: '',
@@ -88,11 +89,16 @@ export default function PaginaDespliegues() {
 
   const handleCrearDespliegue = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formulario.idPlataforma && !formulario.servidor) {
+      setError('Debes seleccionar una plataforma o escribir un servidor');
+      return;
+    }
     try {
       await crearDespliegue({
         idClienteEmpresa: clienteSeleccionado,
         tipo: formulario.tipo,
-        idPlataforma: formulario.idPlataforma,
+        idPlataforma: formulario.idPlataforma || null,
+        servidor: formulario.servidor || null,
         version: formulario.version,
         numeroCompilacion: formulario.numeroCompilacion,
         notasLanzamiento: formulario.notasLanzamiento,
@@ -104,6 +110,7 @@ export default function PaginaDespliegues() {
       setFormulario({
         tipo: 'production',
         idPlataforma: '',
+        servidor: '',
         version: '',
         numeroCompilacion: '',
         notasLanzamiento: '',
@@ -283,14 +290,19 @@ export default function PaginaDespliegues() {
 
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Seleccionar Cliente
+          Seleccionar Cliente / Empresa
         </label>
         <select
           value={clienteSeleccionado}
           onChange={(e) => setClienteSeleccionado(e.target.value)}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         >
-          <option value="">Elige un cliente...</option>
+          <option value="">Elige un cliente o empresa...</option>
+          {profile?.role === 'developer' && profile?.company?.name && (
+            <option value={profile.company_id}>
+              📍 Mi Empresa: {profile.company.name}
+            </option>
+          )}
           {clientes.map((cliente) => (
             <option key={cliente.id} value={cliente.client_company_id}>
               {cliente.client_company?.name}
@@ -415,6 +427,7 @@ export default function PaginaDespliegues() {
                     <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Build</th>
                     <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Tipo</th>
                     <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Estado</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Fecha Creación</th>
                     <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Acción</th>
                   </tr>
                 </thead>
@@ -431,6 +444,15 @@ export default function PaginaDespliegues() {
                         <span className={`px-2 py-1 rounded text-xs ${obtenerColorEstado(d.status)}`}>
                           {d.status}
                         </span>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {new Date(d.created_at).toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </td>
                       <td className="px-4 py-3 text-sm whitespace-nowrap">
                         {d.status === 'draft' && (
@@ -513,7 +535,6 @@ export default function PaginaDespliegues() {
               Plataforma
             </label>
             <select
-              required
               value={formulario.idPlataforma}
               onChange={(e) => setFormulario({ ...formulario, idPlataforma: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -525,6 +546,19 @@ export default function PaginaDespliegues() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Servidor (si no usas plataforma)
+            </label>
+            <input
+              type="text"
+              placeholder="ej: servidor.ejemplo.com"
+              value={formulario.servidor}
+              onChange={(e) => setFormulario({ ...formulario, servidor: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
           <div>

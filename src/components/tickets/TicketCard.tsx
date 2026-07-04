@@ -165,7 +165,7 @@ export default function TicketCard({ ticket, onRefresh }: TicketCardProps) {
             {status.label}
           </span>
         </div>
-        <SLABadge slaRecord={ticket.sla_record} compact />
+        {ticket.status !== 'closed' && <SLABadge slaRecord={ticket.sla_record} compact />}
       </div>
 
       {/* Company info */}

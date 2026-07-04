@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Company, Subscription } from '../../types';
+import { Company, Subscription, ClientCompany } from '../../types';
 import { PLANS } from '../../lib/paymentMethods';
 import Modal from '../../components/ui/Modal';
 import Badge from '../../components/ui/Badge';
@@ -10,6 +10,7 @@ import { exportCompaniesAndPlansCSV, exportCompaniesAndPlansPDF } from '../../li
 
 interface CompanyWithSub extends Company {
   subscription?: Subscription;
+  clients?: ClientCompany[];
 }
 
 export default function CompaniesAndPlans() {
@@ -58,24 +59,43 @@ export default function CompaniesAndPlans() {
 
   async function loadCompanies() {
     try {
-      const { data: companiesData } = await supabase
+      // Get all companies that are NOT clients of other companies
+      const { data: allCompanies } = await supabase
         .from('companies')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (companiesData) {
+      if (allCompanies) {
+        // Get all client company IDs to filter them out from the admin list
+        const { data: allClientRelations } = await supabase
+          .from('client_companies')
+          .select('client_company_id');
+
+        const clientCompanyIds = new Set(allClientRelations?.map(c => c.client_company_id) || []);
+
+        // Filter to show only admin companies (not clients of other companies)
+        const adminCompanies = allCompanies.filter(c => !clientCompanyIds.has(c.id));
+
         const companiesWithSubs = await Promise.all(
-          companiesData.map(async (company) => {
-            const { data: sub } = await supabase
-              .from('subscriptions')
-              .select('*')
-              .eq('company_id', company.id)
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .single();
+          adminCompanies.map(async (company) => {
+            const [{ data: sub }, { data: clients }] = await Promise.all([
+              supabase
+                .from('subscriptions')
+                .select('*')
+                .eq('company_id', company.id)
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single(),
+              supabase
+                .from('client_companies')
+                .select('*, client_company:companies!client_company_id(*)')
+                .eq('admin_company_id', company.id)
+                .order('created_at', { ascending: false })
+            ]);
             return {
               ...company,
               subscription: sub || undefined,
+              clients: clients || [],
             };
           })
         );
@@ -191,19 +211,21 @@ export default function CompaniesAndPlans() {
       alert('El nombre de la empresa es obligatorio');
       return;
     }
-    if (!companyForm.admin_name.trim()) {
-      alert('El nombre del admin es obligatorio');
-      return;
-    }
-    if (!companyForm.admin_email.trim()) {
-      alert('El email del admin es obligatorio');
-      return;
-    }
 
-    // For new companies, password is required
-    if (!editingCompany && !companyForm.admin_password.trim()) {
-      alert('La contraseña es obligatoria para nuevas empresas');
-      return;
+    // For new companies, validate all admin fields
+    if (!editingCompany) {
+      if (!companyForm.admin_name.trim()) {
+        alert('El nombre del admin es obligatorio');
+        return;
+      }
+      if (!companyForm.admin_email.trim()) {
+        alert('El email del admin es obligatorio');
+        return;
+      }
+      if (!companyForm.admin_password.trim()) {
+        alert('La contraseña es obligatoria para nuevas empresas');
+        return;
+      }
     }
 
     setEditingCompanyLoading(true);
@@ -401,6 +423,7 @@ export default function CompaniesAndPlans() {
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="px-4 py-3 text-left w-8"></th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Empresa</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Admin</th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide">Plan</th>
@@ -413,80 +436,152 @@ export default function CompaniesAndPlans() {
             <tbody>
               {filtered.map((company) => {
                 const currentPlan = PLANS.find(p => p.id === company.subscription?.plan);
+                const isExpanded = expandedId === company.id;
+                const clientCount = company.clients?.length ?? 0;
+
                 return (
-                  <tr key={company.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
-                          style={{ backgroundColor: company.primary_color }}
+                  <React.Fragment key={company.id}>
+                    <tr className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                      <td className="px-4 py-4">
+                        <button
+                          onClick={() => setExpandedId(isExpanded ? null : company.id)}
+                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                          title={isExpanded ? 'Contraer' : 'Expandir clientes'}
                         >
-                          {company.name.charAt(0)}
+                          {isExpanded ? (
+                            <ChevronUp size={16} className="text-gray-600 dark:text-gray-400" />
+                          ) : (
+                            <ChevronDown size={16} className="text-gray-600 dark:text-gray-400" />
+                          )}
+                        </button>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-bold text-xs flex-shrink-0"
+                            style={{ backgroundColor: company.primary_color }}
+                          >
+                            {company.name.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900 dark:text-white">{company.name}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">{clientCount} cliente{clientCount !== 1 ? 's' : ''}</p>
+                          </div>
                         </div>
-                        <p className="font-medium text-gray-900 dark:text-white">{company.name}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm">
-                        <p className="font-medium text-gray-900 dark:text-white">{company.admin_name}</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">{company.admin_email}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      {currentPlan ? (
-                        <Badge variant="info">{currentPlan.name}</Badge>
-                      ) : (
-                        <span className="text-sm text-gray-500 dark:text-gray-400">Sin plan</span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
-                      {company.subscription ? `$${company.subscription.amount} ${company.subscription.currency}` : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant={
-                          company.maintenance_mode
-                            ? 'danger'
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm">
+                          <p className="font-medium text-gray-900 dark:text-white">{company.admin_name}</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400">{company.admin_email}</p>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        {currentPlan ? (
+                          <Badge variant="info">{currentPlan.name}</Badge>
+                        ) : (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Sin plan</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">
+                        {company.subscription ? `$${company.subscription.amount} ${company.subscription.currency}` : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant={
+                            company.maintenance_mode
+                              ? 'danger'
+                              : company.subscription?.status === 'active'
+                              ? 'success'
+                              : 'secondary'
+                          }
+                        >
+                          {company.maintenance_mode
+                            ? 'Suspendida'
                             : company.subscription?.status === 'active'
-                            ? 'success'
-                            : 'secondary'
-                        }
-                      >
-                        {company.maintenance_mode
-                          ? 'Suspendida'
-                          : company.subscription?.status === 'active'
-                          ? 'Activa'
-                          : 'Prueba'}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                      {company.subscription
-                        ? new Date(company.subscription.start_date).toLocaleDateString('es-ES')
-                        : '—'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => openEditCompanyModal(company)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-                        >
-                          <Palette size={13} />Editar
-                        </button>
-                        <button
-                          onClick={() => openEditPlanModal(company)}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
-                        >
-                          <Edit2 size={13} />Plan
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm({ open: true, company })}
-                          className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
-                        >
-                          <Trash2 size={13} />Eliminar
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                            ? 'Activa'
+                            : 'Prueba'}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {company.subscription
+                          ? new Date(company.subscription.start_date).toLocaleDateString('es-ES')
+                          : '—'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => openEditCompanyModal(company)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                          >
+                            <Palette size={13} />Editar
+                          </button>
+                          <button
+                            onClick={() => openEditPlanModal(company)}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                          >
+                            <Edit2 size={13} />Plan
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm({ open: true, company })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+                          >
+                            <Trash2 size={13} />Eliminar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {isExpanded && clientCount > 0 && (
+                      <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
+                        <td colSpan={8} className="px-6 py-4">
+                          <div className="space-y-2">
+                            <p className="text-xs font-semibold text-gray-600 dark:text-gray-400 uppercase tracking-wide mb-3">
+                              Clientes ({clientCount})
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {company.clients?.map((client: any) => (
+                                <div key={client.id} className="p-3 bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                                  <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div>
+                                      <p className="font-medium text-sm text-gray-900 dark:text-white">
+                                        {client.client_company?.name || 'Sin empresa'}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{client.client_contact_name}</p>
+                                    </div>
+                                  </div>
+                                  <p className="text-xs text-gray-500 dark:text-gray-400">{client.client_contact_email}</p>
+                                  {client.client_contact_phone && (
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">{client.client_contact_phone}</p>
+                                  )}
+                                  <div className="flex items-center gap-2 mt-2">
+                                    <Badge
+                                      variant={
+                                        client.status === 'active'
+                                          ? 'success'
+                                          : client.status === 'inactive'
+                                          ? 'secondary'
+                                          : 'danger'
+                                      }
+                                    >
+                                      {client.status === 'active' ? 'Activo' : client.status === 'inactive' ? 'Inactivo' : 'Suspendido'}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+
+                    {isExpanded && clientCount === 0 && (
+                      <tr className="border-b border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-800/30">
+                        <td colSpan={8} className="px-6 py-4">
+                          <p className="text-sm text-gray-500 dark:text-gray-400">No hay clientes registrados</p>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>

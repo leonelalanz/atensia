@@ -65,6 +65,7 @@ export default function TicketDetailPage() {
   const [previewImg, setPreviewImg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const assignDropRef = useRef<HTMLDivElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const [editingDescription, setEditingDescription] = useState(false);
   const [descriptionValue, setDescriptionValue] = useState('');
   const [savingDescription, setSavingDescription] = useState(false);
@@ -76,6 +77,72 @@ export default function TicketDetailPage() {
   const [loadingAssignUsers, setLoadingAssignUsers] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const assignSearchRef = useRef<HTMLInputElement>(null);
+
+  // ── Paste handler for attachments tab ────────────────────────
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      if (activeTab !== 'attachments') return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const type = items[i].type;
+          if (type.startsWith('image/')) {
+            const file = items[i].getAsFile();
+            if (file) files.push(file);
+          }
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        handleFileUpload({ target: { files: new DataTransfer().items.length > 0 ? new DataTransfer().files : null } } as any);
+        // Directly process the pasted files
+        for (const file of files) {
+          if (file.size > 10 * 1024 * 1024) {
+            setUploadError(`"${file.name}" supera el límite de 10 MB.`);
+            continue;
+          }
+          uploadPastedFile(file);
+        }
+      }
+    }
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, [activeTab, profile, ticket]);
+
+  async function uploadPastedFile(file: File) {
+    if (!profile || !ticket) return;
+    setUploading(true);
+    setUploadError('');
+
+    const path = `${profile.id}/${ticket.id}/${Date.now()}_${file.name}`;
+    const { error: storageErr } = await supabase.storage
+      .from('attachments')
+      .upload(path, file, { cacheControl: '3600', upsert: false });
+
+    if (storageErr) {
+      setUploadError(`Error al subir "${file.name}": ${storageErr.message}`);
+      setUploading(false);
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from('attachments').getPublicUrl(path);
+
+    await supabase.from('ticket_attachments').insert({
+      ticket_id: ticket.id,
+      file_name: file.name,
+      file_url: urlData.publicUrl,
+      file_size: file.size,
+      file_type: file.type,
+      uploaded_by: profile.id,
+    });
+
+    setUploading(false);
+    await loadTicket();
+  }
 
   async function loadTicket() {
     const { data } = await supabase
@@ -262,12 +329,15 @@ export default function TicketDetailPage() {
     if (error) {
       setTicket((prev) => prev ? { ...prev, assigned_to: prevAssigned, assignee: prevAssignee } : prev);
     } else {
+      const newAssignee = userId ? (assignUsers.find(u => u.id === userId)) : null;
       await onTicketAssigned({
         ticketId:       ticket.id,
         ticketNumber:   ticket.ticket_number,
         title:          ticket.title,
         companyId:      ticket.company_id,
+        companyName:    ticket.company?.name,
         newAssigneeId:  userId,
+        newAssigneeName: newAssignee?.full_name,
         prevAssigneeId: prevAssigned || null,
         byUserId:       profile!.id,
       });
@@ -419,6 +489,7 @@ export default function TicketDetailPage() {
                   ticketNumber={ticket.ticket_number}
                   ticketTitle={ticket.title}
                   companyId={ticket.company_id}
+                  companyName={ticket.company?.name}
                   creatorId={ticket.created_by}
                   assigneeId={ticket.assigned_to}
                 />
@@ -426,7 +497,7 @@ export default function TicketDetailPage() {
 
               {activeTab === 'attachments' && (
                 <div className="space-y-4">
-                  <div>
+                  <div ref={dropZoneRef}>
                     <input
                       ref={fileInputRef}
                       type="file"
@@ -451,7 +522,7 @@ export default function TicketDetailPage() {
                       )}
                       <div className="text-center">
                         <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                          {uploading ? 'Subiendo archivos...' : 'Haz clic o arrastra archivos aquí'}
+                          {uploading ? 'Subiendo archivos...' : 'Haz clic, arrastra o pega imágenes'}
                         </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                           Imágenes, PDF, Word, Excel · Máx. 10 MB por archivo

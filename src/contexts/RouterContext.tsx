@@ -23,6 +23,7 @@ const ROUTE_TO_PATH: Record<Route, string> = {
   'sla':               '/sla',
   'activities':        '/activities',
   'audit':             '/audit',
+  'payment-proofs':    '/payment-proofs',
   'settings':          '/settings',
   'branding':          '/branding',
   'help':              '/help',
@@ -30,6 +31,7 @@ const ROUTE_TO_PATH: Record<Route, string> = {
   'privacy':           '/privacy',
   'plans-management':  '/admin/plans',
   'upgrade-plan':      '/admin/upgrade',
+  'exchange-rates':    '/admin/exchange-rates',
   'clientes':          '/clientes',
   'despliegues':       '/despliegues',
 };
@@ -43,6 +45,7 @@ function pathToRoute(pathname: string): { route: Route; params: Record<string, s
   if (pathname === '/reset-password') return { route: 'reset-password', params: {} };
   if (pathname === '/admin/plans') return { route: 'plans-management', params: {} };
   if (pathname === '/admin/upgrade') return { route: 'upgrade-plan', params: {} };
+  if (pathname === '/admin/exchange-rates') return { route: 'exchange-rates', params: {} };
   if (pathname === '/tickets/new') return { route: 'new-ticket', params: {} };
   const ticketDetail = pathname.match(/^\/tickets\/([^/]+)$/);
   if (ticketDetail) return { route: 'ticket-detail', params: { id: ticketDetail[1] } };
@@ -53,6 +56,7 @@ function pathToRoute(pathname: string): { route: Route; params: Record<string, s
   if (pathname === '/sla') return { route: 'sla', params: {} };
   if (pathname === '/activities') return { route: 'activities', params: {} };
   if (pathname === '/audit') return { route: 'audit', params: {} };
+  if (pathname === '/payment-proofs') return { route: 'payment-proofs', params: {} };
   if (pathname === '/settings') return { route: 'settings', params: {} };
   if (pathname === '/branding') return { route: 'branding', params: {} };
   if (pathname === '/help') return { route: 'help', params: {} };

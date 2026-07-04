@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Ticket, Users, Building2, CreditCard, ShieldCheck,
   ClipboardList, Settings, Palette, ChevronLeft, ChevronRight,
   AlertCircle, X,
-  BookOpen, History, Zap, Package, Rocket, BarChart3
+  BookOpen, History, Zap, Package, Rocket, BarChart3, DollarSign
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from '../../contexts/RouterContext';
@@ -28,6 +28,8 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Políticas SLA', icon: ShieldCheck, route: 'sla', roles: ['admin'] },
   { label: 'Actividades', icon: ClipboardList, route: 'activities', roles: ['developer','admin'] },
   { label: 'Auditoría', icon: History, route: 'audit', roles: ['admin','superadmin'] },
+  { label: 'Comprobantes de Pago', icon: CreditCard, route: 'payment-proofs', roles: ['superadmin'] },
+  { label: 'Tasa de Cambio', icon: DollarSign, route: 'exchange-rates', roles: ['superadmin'] },
   { label: 'Marca', icon: Palette, route: 'branding', roles: ['admin', 'superadmin'] },
   { label: 'Configuración', icon: Settings, route: 'settings', roles: ['superadmin','admin','agent','developer'] }
 ];

@@ -5,6 +5,7 @@ import { useRouter } from '../../contexts/RouterContext';
 import { useBrand } from '../../contexts/BrandContext';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import Modal from '../../components/ui/Modal';
+import { sendUserRegistrationEmail } from '../../lib/emailService';
 
 export default function SignUpPage() {
   const { navigate } = useRouter();
@@ -94,6 +95,19 @@ export default function SignUpPage() {
         await supabase.rpc('create_default_sla_policies', { p_company_id: companyId });
       } catch (slaErr) {
         console.error('Error creating SLA policies:', slaErr);
+        // No es crítico si falla, continuar de todas formas
+      }
+
+      // 4. Enviar email de bienvenida
+      try {
+        await sendUserRegistrationEmail({
+          email: formData.email.trim(),
+          name: formData.fullName,
+          companyName: formData.companyName.trim(),
+          loginUrl: `${window.location.origin}/login`,
+        });
+      } catch (emailErr) {
+        console.error('Error sending registration email:', emailErr);
         // No es crítico si falla, continuar de todas formas
       }
 

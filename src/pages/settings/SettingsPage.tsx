@@ -187,8 +187,8 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* Plan card — solo para usuarios de empresa, no superadmin */}
-      {plan && (() => {
+      {/* Plan card — solo para usuarios de empresa, no superadmin, no agentes */}
+      {plan && profile?.role !== 'agent' && (() => {
         const cfg = PLAN_CONFIG[plan] ?? PLAN_CONFIG.basic;
         return (
           <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 p-6">

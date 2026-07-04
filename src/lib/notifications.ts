@@ -8,7 +8,8 @@
  */
 
 import { supabase } from './supabase';
-import { AppNotification } from '../types';
+import { AppNotification, Profile } from '../types';
+import { sendTicketNotificationEmail } from './emailService';
 
 type NotifType = AppNotification['type'];
 
@@ -19,9 +20,12 @@ async function notify(
   body:     string,
   type:     NotifType,
   ticketId: string | null = null,
+  emailData?: Record<string, any>,
 ) {
   try {
     console.log('📢 Notifying user:', { userId, title, body, type, ticketId });
+
+    // Save to database
     const { error } = await supabase.from('notifications').insert({
       user_id:   userId,
       title,
@@ -31,6 +35,30 @@ async function notify(
     });
     if (error) console.error('❌ Notification error:', error);
     else console.log('✅ Notification created for:', userId);
+
+    // Send email
+    if (emailData?.sendEmail) {
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', userId)
+          .single();
+
+        if (profile?.email) {
+          console.log(`📧 Sending email to ${profile.email}`);
+          await sendTicketNotificationEmail({
+            type: type as any,
+            recipientEmail: profile.email,
+            recipientName: profile.full_name,
+            ...emailData,
+          });
+        }
+      } catch (emailErr) {
+        console.error('⚠️ Error sending email:', emailErr);
+        // Don't fail the notification if email fails
+      }
+    }
   } catch (err) {
     console.error('❌ Error creating notification:', err);
   }
@@ -44,9 +72,18 @@ async function notifyMany(
   body:      string,
   type:      NotifType,
   ticketId:  string | null = null,
+  emailData?: Record<string, any>,
 ) {
   const targets = [...new Set(userIds)].filter((id) => id && id !== excludeId);
-  await Promise.all(targets.map((id) => notify(id, title, body, type, ticketId)));
+  console.log('🔄 notifyMany: targets to notify:', targets.length, 'emailData:', emailData);
+
+  const promises = targets.map((id) => {
+    console.log(`📬 notifyMany: calling notify for user ${id}`);
+    return notify(id, title, body, type, ticketId, emailData);
+  });
+
+  await Promise.all(promises);
+  console.log('✅ notifyMany: all notifications sent');
 }
 
 /** Returns active admin user IDs for a company. */
@@ -91,15 +128,27 @@ export async function onTicketCreated(opts: {
   ticketId:     string;
   ticketNumber: string;
   title:        string;
+  description?: string;
+  priority?:    string;
   companyId:    string;
+  companyName?: string;
   creatorId:    string;
   assigneeId:   string | null;
 }) {
-  const { ticketId, ticketNumber, title, companyId, creatorId, assigneeId } = opts;
+  const { ticketId, ticketNumber, title, description, priority, companyId, companyName, creatorId, assigneeId } = opts;
   console.log('🎫 onTicketCreated called:', { ticketNumber, title, companyId, creatorId });
 
   const admins = await getAdminsForTicketCompany(companyId);
   console.log('✉️ Admins to notify:', { adminCount: admins.length, admins });
+
+  const emailData = {
+    sendEmail: true,
+    ticketNumber,
+    ticketTitle: title,
+    priority: priority || 'medium',
+    description,
+    companyName,
+  };
 
   // Notificar a todos los admins (excepto si el admin mismo lo creó)
   await notifyMany(
@@ -107,6 +156,7 @@ export async function onTicketCreated(opts: {
     `Nuevo ticket ${ticketNumber}`,
     title,
     'ticket_created', ticketId,
+    emailData,
   );
 
   // Notificar al asignado (si ya viene asignado y no es el creador ni admin)
@@ -116,6 +166,12 @@ export async function onTicketCreated(opts: {
       `Ticket asignado: ${ticketNumber}`,
       `Se te asignó desde el inicio: "${title}"`,
       'ticket_assigned', ticketId,
+      {
+        sendEmail: true,
+        ticketNumber,
+        ticketTitle: title,
+        companyName,
+      },
     );
   }
 }
@@ -131,11 +187,13 @@ export async function onTicketAssigned(opts: {
   ticketNumber:  string;
   title:         string;
   companyId:     string;
+  companyName?:  string;
   newAssigneeId: string | null;
+  newAssigneeName?: string | null;
   prevAssigneeId: string | null;
   byUserId:      string;
 }) {
-  const { ticketId, ticketNumber, title, companyId, newAssigneeId, prevAssigneeId, byUserId } = opts;
+  const { ticketId, ticketNumber, title, companyId, companyName, newAssigneeId, newAssigneeName, prevAssigneeId, byUserId } = opts;
 
   // Al nuevo asignado
   if (newAssigneeId && newAssigneeId !== byUserId) {
@@ -144,6 +202,13 @@ export async function onTicketAssigned(opts: {
       `Ticket asignado: ${ticketNumber}`,
       `"${title}" fue asignado a ti`,
       'ticket_assigned', ticketId,
+      {
+        sendEmail: true,
+        ticketNumber,
+        ticketTitle: title,
+        assigneeName: newAssigneeName,
+        companyName,
+      },
     );
   }
 
@@ -154,6 +219,12 @@ export async function onTicketAssigned(opts: {
       `Ticket reasignado: ${ticketNumber}`,
       `"${title}" fue reasignado a otro agente`,
       'general', ticketId,
+      {
+        sendEmail: true,
+        ticketNumber,
+        ticketTitle: title,
+        companyName,
+      },
     );
   }
 
@@ -167,6 +238,13 @@ export async function onTicketAssigned(opts: {
       `Reasignación: ${ticketNumber}`,
       `"${title}" fue asignado a ${assigneeName}`,
       'ticket_assigned', ticketId,
+      {
+        sendEmail: true,
+        ticketNumber,
+        ticketTitle: title,
+        assigneeName: newAssigneeName,
+        companyName,
+      },
     );
   }
 }
@@ -181,13 +259,14 @@ export async function onTicketStatusChanged(opts: {
   ticketNumber: string;
   title:       string;
   companyId:   string;
+  companyName?: string;
   oldStatus:   string;
   newStatus:   string;
   creatorId:   string | null;
   assigneeId:  string | null;
   byUserId:    string;
 }) {
-  const { ticketId, ticketNumber, title, companyId, oldStatus, newStatus, creatorId, assigneeId, byUserId } = opts;
+  const { ticketId, ticketNumber, title, companyId, companyName, oldStatus, newStatus, creatorId, assigneeId, byUserId } = opts;
 
   const admins = await getAdminsForTicketCompany(companyId);
 
@@ -197,6 +276,14 @@ export async function onTicketStatusChanged(opts: {
   const newLabel = STATUS_LABELS[newStatus] ?? newStatus;
 
   if (newStatus === 'resolved' || newStatus === 'closed') {
+    const emailData = {
+      sendEmail: true,
+      ticketNumber,
+      ticketTitle: title,
+      status: newStatus,
+      companyName,
+    };
+
     // Notificar al creador
     if (creatorId && creatorId !== byUserId) {
       await notify(
@@ -204,6 +291,7 @@ export async function onTicketStatusChanged(opts: {
         `Ticket ${newLabel}: ${ticketNumber}`,
         `Tu ticket "${title}" fue marcado como ${newLabel.toLowerCase()}`,
         'ticket_resolved', ticketId,
+        emailData,
       );
     }
     // Notificar a admins
@@ -212,6 +300,7 @@ export async function onTicketStatusChanged(opts: {
       `Ticket ${newLabel}: ${ticketNumber}`,
       `"${title}" fue marcado como ${newLabel.toLowerCase()}`,
       'ticket_resolved', ticketId,
+      emailData,
     );
   } else if (
     (oldStatus === 'resolved' || oldStatus === 'closed') &&
@@ -225,6 +314,12 @@ export async function onTicketStatusChanged(opts: {
       `Ticket reabierto: ${ticketNumber}`,
       `"${title}" fue reabierto → ${newLabel}`,
       'general', ticketId,
+      {
+        sendEmail: true,
+        ticketNumber,
+        ticketTitle: title,
+        companyName,
+      },
     );
   }
 }
@@ -240,13 +335,14 @@ export async function onTicketEscalated(opts: {
   ticketNumber: string;
   title:       string;
   companyId:   string;
+  companyName?: string;
   newPriority: string;
   oldPriority: string;
   creatorId:   string | null;
   assigneeId:  string | null;
   byUserId:    string;
 }) {
-  const { ticketId, ticketNumber, title, companyId, newPriority, oldPriority, creatorId, assigneeId, byUserId } = opts;
+  const { ticketId, ticketNumber, title, companyId, companyName, newPriority, oldPriority, creatorId, assigneeId, byUserId } = opts;
 
   if (newPriority !== 'critical') return; // Solo notificar escalaciones a Crítico
 
@@ -261,6 +357,14 @@ export async function onTicketEscalated(opts: {
     `⚠️ Ticket escalado a Crítico: ${ticketNumber}`,
     `"${title}" fue escalado de ${oldPriority} a Crítico`,
     'ticket_escalated', ticketId,
+    {
+      sendEmail: true,
+      ticketNumber,
+      ticketTitle: title,
+      oldPriority,
+      newPriority,
+      companyName,
+    },
   );
 }
 
@@ -271,38 +375,61 @@ export async function onTicketEscalated(opts: {
 // ─ Notas internas: solo notifican a admins y al asignado (no al creador)
 // ═══════════════════════════════════════════════════════════════════════════
 export async function onCommentAdded(opts: {
-  ticketId:    string;
+  ticketId:     string;
   ticketNumber: string;
-  title:       string;
-  companyId:   string;
-  creatorId:   string | null;
-  assigneeId:  string | null;
-  commenterId: string;
-  isInternal:  boolean;
+  title:        string;
+  companyId:    string;
+  companyName?: string;
+  creatorId:    string | null;
+  assigneeId:   string | null;
+  commenterId:  string;
+  commenterName?: string;
+  isInternal:   boolean;
 }) {
-  const { ticketId, ticketNumber, title, companyId, creatorId, assigneeId, commenterId, isInternal } = opts;
+  try {
+    const { ticketId, ticketNumber, title, companyId, companyName, creatorId, assigneeId, commenterId, commenterName, isInternal } = opts;
 
-  if (isInternal) {
-    // Nota interna → solo admins y asignado (no el creador del ticket)
-    const admins = await getAdminIds(companyId);
-    const targets = [...admins];
-    if (assigneeId) targets.push(assigneeId);
-    await notifyMany(
-      targets, commenterId,
-      `Nota interna en ${ticketNumber}`,
-      `"${title}"`,
-      'ticket_commented', ticketId,
-    );
-  } else {
-    // Comentario público → creador y asignado
-    const targets: string[] = [];
-    if (creatorId)  targets.push(creatorId);
-    if (assigneeId) targets.push(assigneeId);
-    await notifyMany(
-      targets, commenterId,
-      `Nuevo comentario en ${ticketNumber}`,
-      `"${title}"`,
-      'ticket_commented', ticketId,
-    );
+    console.log('🔔 onCommentAdded called:', { ticketNumber, companyId, isInternal });
+
+    const emailData = {
+      sendEmail: true,
+      ticketNumber,
+      ticketTitle: title,
+      commenterName,
+      companyName,
+    };
+
+    if (isInternal) {
+      console.log('📍 Internal comment - notifying admins and assignee');
+      // Nota interna → solo admins y asignado (no el creador del ticket)
+      const admins = await getAdminIds(companyId);
+      const targets = [...admins];
+      if (assigneeId) targets.push(assigneeId);
+      console.log('📢 Calling notifyMany with targets:', targets.length);
+      await notifyMany(
+        targets, commenterId,
+        `Nota interna en ${ticketNumber}`,
+        `"${title}"`,
+        'ticket_commented', ticketId,
+        emailData,
+      );
+    } else {
+      console.log('📍 Public comment - notifying creator and assignee');
+      // Comentario público → creador y asignado
+      const targets: string[] = [];
+      if (creatorId)  targets.push(creatorId);
+      if (assigneeId) targets.push(assigneeId);
+      console.log('📢 Calling notifyMany with targets:', targets.length, targets);
+      await notifyMany(
+        targets, commenterId,
+        `Nuevo comentario en ${ticketNumber}`,
+        `"${title}"`,
+        'ticket_commented', ticketId,
+        emailData,
+      );
+    }
+    console.log('✅ onCommentAdded completed');
+  } catch (err) {
+    console.error('❌ Error in onCommentAdded:', err);
   }
 }

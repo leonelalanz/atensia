@@ -1,13 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Check, ArrowLeft } from 'lucide-react';
 import { useRouter } from '../contexts/RouterContext';
 import { PLANS } from '../lib/paymentMethods';
 import PaymentModal from '../components/payments/PaymentModal';
+import { getLatestExchangeRate, Currency, formatPriceDisplay } from '../lib/currencyService';
 
 export default function PricingPage() {
   const { navigate } = useRouter();
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [currency, setCurrency] = useState<Currency>('USD');
+  const [exchangeRate, setExchangeRate] = useState(4500000);
+
+  useEffect(() => {
+    getLatestExchangeRate().then(rate => setExchangeRate(rate));
+  }, []);
 
   const handleUpgrade = (planId: string) => {
     setSelectedPlan(planId);
@@ -28,12 +35,38 @@ export default function PricingPage() {
             <ArrowLeft size={20} />
             Volver al Dashboard
           </button>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Planes de Precios
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Elige el plan perfecto para tu equipo. Todos incluyen 7 días de prueba gratis.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
+                Planes de Precios
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400">
+                Elige el plan perfecto para tu equipo. Todos incluyen 7 días de prueba gratis.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrency('USD')}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  currency === 'USD'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                USD
+              </button>
+              <button
+                onClick={() => setCurrency('VES')}
+                className={`px-4 py-2 rounded-lg font-medium transition ${
+                  currency === 'VES'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-white hover:bg-gray-300 dark:hover:bg-gray-700'
+                }`}
+              >
+                VES
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -66,12 +99,28 @@ export default function PricingPage() {
 
                 {/* Price */}
                 <div className="mb-6">
-                  <span className="text-5xl font-bold text-gray-900 dark:text-white">
-                    ${plan.price}
-                  </span>
-                  <span className="text-gray-600 dark:text-gray-400 ml-2">
-                    USD/mes
-                  </span>
+                  {currency === 'USD' ? (
+                    <>
+                      <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                        ${plan.price}
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-400 ml-2">
+                        USD/mes
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-5xl font-bold text-gray-900 dark:text-white">
+                        {Math.round(plan.price * exchangeRate).toLocaleString('es-VE')}
+                      </span>
+                      <span className="text-gray-600 dark:text-gray-400 ml-2">
+                        VES/mes
+                      </span>
+                      <div className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                        ≈ ${plan.price} USD
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* CTA Button */}
@@ -145,6 +194,7 @@ export default function PricingPage() {
             setSelectedPlan(null);
           }}
           plan={plan}
+          selectedCurrency={currency}
         />
       )}
     </div>

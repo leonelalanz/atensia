@@ -20,6 +20,8 @@ import ActivitiesPage from './pages/activities/ActivitiesPage';
 import SettingsPage from './pages/settings/SettingsPage';
 import BrandingPage from './pages/branding/BrandingPage';
 import AuditLogsPage from './pages/audit/AuditLogsPage';
+import PaymentProofsPage from './pages/superadmin/PaymentProofsPage';
+import ExchangeRatePage from './pages/superadmin/ExchangeRatePage';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 import HelpPage from './pages/help/HelpPage';
 import ForgotPasswordPage from './pages/auth/ForgotPasswordPage';
@@ -82,6 +84,8 @@ function AppRoutes() {
       case 'sla': return role === 'admin' ? <SLAPage /> : <DashboardPage />;
       case 'activities': return (role === 'developer' || role === 'admin') ? <ActivitiesPage /> : <DashboardPage />;
       case 'audit': return (role === 'admin' || role === 'superadmin') ? <AuditLogsPage /> : <DashboardPage />;
+      case 'payment-proofs': return role === 'superadmin' ? <PaymentProofsPage /> : <DashboardPage />;
+      case 'exchange-rates': return role === 'superadmin' ? <ExchangeRatePage /> : <DashboardPage />;
       case 'settings': return <SettingsPage />;
       case 'branding': return role === 'admin' || role === 'superadmin' ? <BrandingPage /> : <DashboardPage />;
       case 'terms': return <TermsOfServicePage />;

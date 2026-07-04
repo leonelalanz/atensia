@@ -56,6 +56,7 @@ function isImage(file: File | TicketAttachment) {
 export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps) {
   const { profile } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [users, setUsers] = useState<Profile[]>([]);
@@ -119,6 +120,33 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         .then(({ data }) => setExistingAttachments((data ?? []) as TicketAttachment[]));
     }
   }, [profile?.company_id, profile?.role, ticket?.id]);
+
+  // ── Paste handler ─────────────────────────────────────────────
+  useEffect(() => {
+    function handlePaste(e: ClipboardEvent) {
+      if (!dropZoneRef.current) return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].kind === 'file') {
+          const type = items[i].type;
+          if (type.startsWith('image/')) {
+            const file = items[i].getAsFile();
+            if (file) files.push(file);
+          }
+        }
+      }
+      if (files.length > 0) {
+        e.preventDefault();
+        addFiles(files);
+      }
+    }
+
+    document.addEventListener('paste', handlePaste);
+    return () => document.removeEventListener('paste', handlePaste);
+  }, []);
 
   function set<K extends keyof typeof form>(key: K, value: typeof form[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -223,11 +251,14 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         await uploadFiles(ticket.id);
 
         // ── Notificaciones al editar ──────────────────────────────
+        const assignee = users.find(u => u.id === form.assigned_to);
+        const prevAssignee = users.find(u => u.id === ticket.assigned_to);
         const base = {
           ticketId:     ticket.id,
           ticketNumber: ticket.ticket_number,
           title:        form.title,
           companyId:    profile.company_id!,
+          companyName:  profile.company?.name,
           byUserId:     profile.id,
         };
 
@@ -243,7 +274,7 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         }
 
         // Prioridad escalada a crítico
-        if (form.priority !== ticket.priority) {
+        if (form.priority !== ticket.priority && form.priority === 'critical') {
           await onTicketEscalated({
             ...base,
             oldPriority: ticket.priority,
@@ -258,6 +289,7 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
           await onTicketAssigned({
             ...base,
             newAssigneeId:  form.assigned_to || null,
+            newAssigneeName: assignee?.full_name,
             prevAssigneeId: ticket.assigned_to || null,
           });
         }
@@ -291,11 +323,15 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         await uploadFiles(newTicket.id);
 
         // ── Notificaciones al crear ───────────────────────────────
+        const assigneeForNew = users.find(u => u.id === form.assigned_to);
         await onTicketCreated({
           ticketId:     newTicket.id,
           ticketNumber: newTicket.ticket_number,
           title:        form.title,
+          description:  form.description,
+          priority:     form.priority,
           companyId:    profile.company_id!,
+          companyName:  profile.company?.name,
           creatorId:    profile.id,
           assigneeId:   form.assigned_to || null,
         });
@@ -399,6 +435,7 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
 
         {/* Drop zone */}
         <div
+          ref={dropZoneRef}
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); addFiles(e.dataTransfer.files); }}
@@ -411,7 +448,7 @@ export default function TicketForm({ ticket, onSave, onCancel }: TicketFormProps
         >
           <Upload size={20} className="text-gray-400" />
           <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-            Arrastra archivos aquí o <span className="text-blue-600 dark:text-blue-400 font-medium">selecciona</span>
+            Arrastra archivos, <span className="text-blue-600 dark:text-blue-400 font-medium">selecciona</span> o <span className="text-blue-600 dark:text-blue-400 font-medium">pega</span> imágenes
           </p>
           <p className="text-[11px] text-gray-400">Imágenes, PDF, Word, Excel · Máx. {MAX_MB} MB</p>
           <input
