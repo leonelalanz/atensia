@@ -249,7 +249,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tu@empresa.com"
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                className="w-full px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-white dark:focus:bg-gray-800"
                 autoComplete="email"
               />
             </div>
@@ -264,7 +264,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                  className="w-full px-3 py-2.5 pr-10 rounded-xl bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-white dark:focus:bg-gray-800"
                   autoComplete="current-password"
                 />
                 <button

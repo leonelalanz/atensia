@@ -236,6 +236,39 @@ export interface Report {
   generator?: Profile;
 }
 
+export type MembershipStatus = 'active' | 'cancelled';
+
+export interface Membership {
+  id: string;
+  company_id: string;
+  name: string;
+  url: string | null;
+  cost: number;
+  currency: string;
+  start_date: string;
+  expiration_date: string | null;
+  status: MembershipStatus;
+  notes: string;
+  last_alert_sent_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  company?: Company;
+  renewals?: MembershipRenewal[];
+}
+
+export interface MembershipRenewal {
+  id: string;
+  membership_id: string;
+  renewed_at: string;
+  previous_expiration_date: string | null;
+  new_expiration_date: string;
+  amount: number | null;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+}
+
 export type Route =
   | 'login'
   | 'signup'
@@ -262,14 +295,15 @@ export type Route =
   | 'plans-management'
   | 'upgrade-plan'
   | 'clientes'
-  | 'despliegues';
+  | 'despliegues'
+  | 'memberships';
 
 export interface AppNotification {
   id: string;
   user_id: string;
   title: string;
   body: string;
-  type: 'ticket_created' | 'ticket_assigned' | 'ticket_resolved' | 'ticket_commented' | 'ticket_escalated' | 'general';
+  type: 'ticket_created' | 'ticket_assigned' | 'ticket_resolved' | 'ticket_commented' | 'ticket_escalated' | 'general' | 'membership_expiring';
   ticket_id: string | null;
   read: boolean;
   created_at: string;

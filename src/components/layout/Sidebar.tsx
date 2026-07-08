@@ -3,7 +3,7 @@ import {
   LayoutDashboard, Ticket, Users, Building2, CreditCard, ShieldCheck,
   ClipboardList, Settings, Palette, ChevronLeft, ChevronRight,
   AlertCircle, X,
-  BookOpen, History, Zap, Package, Rocket, BarChart3, DollarSign
+  BookOpen, History, Zap, Package, Rocket, BarChart3, DollarSign, Wallet
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRouter } from '../../contexts/RouterContext';
@@ -25,6 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: 'Empresas', icon: Building2, route: 'companies', roles: ['superadmin'] },
   { label: 'Clientes', icon: Building2, route: 'clientes', roles: ['admin'] },
   { label: 'Despliegues', icon: Rocket, route: 'despliegues', roles: ['admin','developer'] },
+  { label: 'Membresías', icon: Wallet, route: 'memberships', roles: ['admin','superadmin'] },
   { label: 'Políticas SLA', icon: ShieldCheck, route: 'sla', roles: ['admin'] },
   { label: 'Actividades', icon: ClipboardList, route: 'activities', roles: ['developer','admin'] },
   { label: 'Auditoría', icon: History, route: 'audit', roles: ['admin','superadmin'] },

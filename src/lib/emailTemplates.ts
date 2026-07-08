@@ -22,6 +22,8 @@ export function getEmailTemplate(type: string, data: Record<string, any>): { sub
       return passwordChangedTemplate(data);
     case 'password_reset':
       return passwordResetTemplate(data);
+    case 'membership_expiring':
+      return membershipExpiringTemplate(data);
     default:
       return genericTemplate(data);
   }
@@ -619,6 +621,71 @@ function invoiceGeneratedTemplate(data: {
 
             <p style="color: #6b7280; margin-top: 20px;">
               Si tienes preguntas sobre tu factura, por favor contáctanos.
+            </p>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+  return { subject, html };
+}
+
+function membershipExpiringTemplate(data: {
+  recipientName?: string;
+  membershipName: string;
+  expirationDate: string;
+  daysLeft: number;
+  cost: number;
+  currency: string;
+}): { subject: string; html: string } {
+  const subject = `⚠️ Membresía por vencer: ${data.membershipName}`;
+  const html = `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1f2937; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+          .header { background: #ea580c; color: white; padding: 20px; border-radius: 8px 8px 0 0; }
+          .content { background: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }
+          .alert-box { background: #fed7aa; border-left: 4px solid #ea580c; padding: 15px; border-radius: 6px; margin: 15px 0; }
+          .membership-info { background: white; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; margin: 15px 0; }
+          .label { font-weight: 600; color: #6b7280; font-size: 12px; text-transform: uppercase; }
+          .value { color: #1f2937; font-size: 14px; margin-top: 4px; }
+          .button { display: inline-block; padding: 10px 20px; background: #ea580c; color: white; text-decoration: none; border-radius: 6px; margin-top: 15px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1 style="margin: 0; font-size: 20px;">Membresía por Vencer</h1>
+            <p style="margin: 5px 0 0 0; opacity: 0.9;">Tu membresía está próxima a expirar</p>
+          </div>
+          <div class="content">
+            <p>Hola ${data.recipientName || 'Administrador'},</p>
+
+            <div class="alert-box">
+              <strong>⏰ Tu membresía vence en ${data.daysLeft} día(s)</strong>
+            </div>
+
+            <div class="membership-info">
+              <div class="label">Membresía</div>
+              <div class="value">${data.membershipName}</div>
+
+              <div class="label" style="margin-top: 15px;">Fecha de Vencimiento</div>
+              <div class="value">${new Date(data.expirationDate).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+
+              <div class="label" style="margin-top: 15px;">Costo</div>
+              <div class="value">${data.cost} ${data.currency}</div>
+            </div>
+
+            <p>Por favor, renueva tu membresía a tiempo para evitar interrupciones en los servicios.</p>
+
+            <a href="https://atensia.vercel.app/memberships" class="button">Ir a Membresías</a>
+
+            <p style="color: #6b7280; margin-top: 20px; font-size: 12px;">
+              Si tienes preguntas, contáctate con soporte.
             </p>
           </div>
         </div>

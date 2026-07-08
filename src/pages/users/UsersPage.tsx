@@ -222,17 +222,17 @@ export default function UsersPage() {
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar usuarios..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-800" />
         </div>
         {showFilters && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
             <select value={filterRole} onChange={(e) => setFilterRole(e.target.value as UserRole | '')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="px-3 py-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-800">
               <option value="">Todos los roles</option>
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value as 'all' | 'active' | 'inactive')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="px-3 py-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-800">
               <option value="all">Todos los estados</option>
               <option value="active">Activos</option>
               <option value="inactive">Inactivos</option>
@@ -240,12 +240,12 @@ export default function UsersPage() {
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Desde</label>
               <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-800" />
             </div>
             <div>
               <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Hasta</label>
               <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2 rounded-lg bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-800" />
             </div>
           </div>
         )}
@@ -339,7 +339,7 @@ export default function UsersPage() {
               <input type={field === 'email' ? 'email' : 'text'} value={form[field as keyof UserFormData]}
                 onChange={(e) => setForm((f) => ({ ...f, [field]: e.target.value }))}
                 disabled={!!editUser && field === 'email'}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50" />
+                className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-700 disabled:opacity-50" />
             </div>
           ))}
           {!editUser && (
@@ -347,13 +347,13 @@ export default function UsersPage() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Contraseña *</label>
               <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
                 placeholder="Mínimo 6 caracteres"
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-700" />
             </div>
           )}
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Rol</label>
             <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value as UserRole }))}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-700">
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
           </div>
@@ -361,7 +361,7 @@ export default function UsersPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Empresa *</label>
               <select value={form.company_id} onChange={(e) => setForm((f) => ({ ...f, company_id: e.target.value }))}
-                className="w-full px-3 py-2.5 rounded-xl border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                className="w-full px-3 py-2.5 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-white text-sm outline-none border-none focus:bg-gray-50 dark:focus:bg-gray-700">
                 <option value="">Seleccionar empresa...</option>
                 {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>

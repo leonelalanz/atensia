@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { Search, SlidersHorizontal, Ticket, Download, FileText, RefreshCw, CheckSquare, Square, X, Lock } from 'lucide-react';
+import { Search, SlidersHorizontal, Ticket, Download, FileText, RefreshCw, CheckSquare, Square, X, Lock, Grid3X3, List } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useRouter } from '../../contexts/RouterContext';
 import { usePlan } from '../../hooks/usePlan';
 import { Ticket as TicketType, TicketPriority, TicketStatus, TicketCategory } from '../../types';
 import TicketCard from '../../components/tickets/TicketCard';
+import Avatar from '../../components/ui/Avatar';
 import LoadingSpinner from '../../components/ui/LoadingSpinner';
 import { exportTicketsCSV, exportTicketsPDF } from '../../lib/export';
 
@@ -35,6 +37,7 @@ const CATEGORIES: { value: TicketCategory | ''; label: string }[] = [
 
 export default function TicketsPage() {
   const { profile } = useAuth();
+  const { navigate } = useRouter();
   const { canExportPDF } = usePlan();
   const [tickets, setTickets] = useState<TicketType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +55,8 @@ export default function TicketsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const [bulkLoading, setBulkLoading] = useState(false);
+  // View mode
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('cards');
   const liveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loadTickets = useCallback(async (silent = false) => {
@@ -62,11 +67,13 @@ export default function TicketsPage() {
       let ticketsData: TicketType[] = [];
       let error: any = null;
 
+      const selectFields = '*, company:companies(id, name), creator:profiles!created_by(id, full_name, avatar_emoji, avatar_color, role, email, company_id, is_active, created_at), assignee:profiles!assigned_to(id, full_name, avatar_emoji, avatar_color, role, email, company_id, is_active, created_at), sla_record:sla_records(id, ticket_id, first_response_deadline, resolution_deadline, first_response_met, resolution_met, first_responded_at, created_at)';
+
       if (profile.role === 'superadmin') {
         // Superadmin sees all tickets
         const result = await supabase
           .from('tickets')
-          .select('*, company:companies(id, name)')
+          .select(selectFields)
           .order('created_at', { ascending: false });
         ticketsData = result.data || [];
         error = result.error;
@@ -83,7 +90,7 @@ export default function TicketsPage() {
 
         const result = await supabase
           .from('tickets')
-          .select('*, company:companies(id, name)')
+          .select(selectFields)
           .in('company_id', allCompanyIds)
           .order('created_at', { ascending: false });
 
@@ -94,7 +101,7 @@ export default function TicketsPage() {
         // Don't filter here - let RLS handle it (they can see own company + assigned tickets)
         const result = await supabase
           .from('tickets')
-          .select('*, company:companies(id, name)')
+          .select(selectFields)
           .order('created_at', { ascending: false });
 
         ticketsData = result.data || [];
@@ -105,40 +112,11 @@ export default function TicketsPage() {
         console.error('Error loading tickets:', error);
         setTickets([]);
       } else if (!ticketsData || ticketsData.length === 0) {
-        console.log('No tickets found for superadmin');
+        console.log('No tickets found');
         setTickets([]);
       } else {
-        // Load profiles and SLA records
-        const { data: allProfiles, error: profileError } = await supabase.rpc('get_all_profiles');
-        if (profileError) {
-          console.error('Error loading profiles:', profileError);
-          setTickets([]);
-          return;
-        }
-
-        const profileMap = new Map(allProfiles?.map((p: any) => [p.id, p]) ?? []);
-
-        const ticketIds = ticketsData.map((t: any) => t.id);
-        const { data: slaRecords, error: slaError } = await supabase
-          .from('sla_records')
-          .select('*')
-          .in('ticket_id', ticketIds);
-
-        if (slaError) {
-          console.error('Error loading SLA records:', slaError);
-        }
-
-        const slaMap = new Map(slaRecords?.map((s: any) => [s.ticket_id, s]) ?? []);
-
-        const enrichedTickets = ticketsData.map((ticket: any) => ({
-          ...ticket,
-          creator: ticket.created_by ? profileMap.get(ticket.created_by) : null,
-          assignee: ticket.assigned_to ? profileMap.get(ticket.assigned_to) : null,
-          sla_record: slaMap.get(ticket.id) ?? null
-        }));
-
-        console.log('Loaded tickets:', enrichedTickets.length);
-        setTickets(enrichedTickets as TicketType[]);
+        console.log('Loaded tickets:', ticketsData.length);
+        setTickets(ticketsData as TicketType[]);
       }
     } catch (err) {
       console.error('Exception loading tickets:', err);
@@ -293,6 +271,30 @@ export default function TicketsPage() {
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-blue-600 text-white text-xs">{activeFilters}</span>
             )}
           </button>
+          <div className="flex border border-gray-300 dark:border-gray-700 rounded-xl overflow-hidden">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+              title="Vista de tarjetas"
+            >
+              <Grid3X3 size={15} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white'
+                  : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
+              }`}
+              title="Vista de lista"
+            >
+              <List size={15} />
+            </button>
+          </div>
         </div>
       </div>
 
@@ -362,54 +364,83 @@ export default function TicketsPage() {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700">
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as TicketStatus | '')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
-            </select>
-            <select
-              value={filterPriority}
-              onChange={(e) => setFilterPriority(e.target.value as TicketPriority | '')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {PRIORITIES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-            <select
-              value={filterCategory}
-              onChange={(e) => setFilterCategory(e.target.value as TicketCategory | '')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-            </select>
-            <select
-              value={filterAssigned}
-              onChange={(e) => setFilterAssigned(e.target.value as 'all' | 'me' | 'unassigned')}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">Todos los asignados</option>
-              <option value="me">Mis tickets</option>
-              <option value="unassigned">Sin asignar</option>
-            </select>
-            <select
-              value={filterCompany}
-              onChange={(e) => setFilterCompany(e.target.value)}
-              className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los clientes</option>
-              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Desde</label>
-              <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <div className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-200 dark:border-gray-700 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Estado</label>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value as TicketStatus | '')}
+                  className="w-full px-3 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {STATUSES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Prioridad</label>
+                <select
+                  value={filterPriority}
+                  onChange={(e) => setFilterPriority(e.target.value as TicketPriority | '')}
+                  className="w-full px-3 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {PRIORITIES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Categoría</label>
+                <select
+                  value={filterCategory}
+                  onChange={(e) => setFilterCategory(e.target.value as TicketCategory | '')}
+                  className="w-full px-3 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Asignado a</label>
+                <select
+                  value={filterAssigned}
+                  onChange={(e) => setFilterAssigned(e.target.value as 'all' | 'me' | 'unassigned')}
+                  className="w-full px-3 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">Todos los asignados</option>
+                  <option value="me">Mis tickets</option>
+                  <option value="unassigned">Sin asignar</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Empresa/Cliente</label>
+                <select
+                  value={filterCompany}
+                  onChange={(e) => setFilterCompany(e.target.value)}
+                  className="w-full px-3 py-2.5 pr-8 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm appearance-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Todos los clientes</option>
+                  {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">Hasta</label>
-              <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            <div className="border-t border-gray-300 dark:border-gray-700 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 max-w-xs">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Desde</label>
+                <input
+                  type="date"
+                  value={filterDateFrom}
+                  onChange={(e) => setFilterDateFrom(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="dd/mm/aaaa"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Hasta</label>
+                <input
+                  type="date"
+                  value={filterDateTo}
+                  onChange={(e) => setFilterDateTo(e.target.value)}
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="dd/mm/aaaa"
+                />
+              </div>
             </div>
           </div>
         )}
@@ -425,7 +456,7 @@ export default function TicketsPage() {
             {search || activeFilters > 0 ? 'Intenta ajustar los filtros de búsqueda' : 'Crea el primer ticket para comenzar'}
           </p>
         </div>
-      ) : (
+      ) : viewMode === 'cards' ? (
         <div className="grid gap-3 sm:gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {filtered.map((t) => (
             <div key={t.id} className="relative group">
@@ -445,6 +476,86 @@ export default function TicketsPage() {
               </div>
             </div>
           ))}
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-gray-200 dark:border-gray-800 rounded-xl">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/50 border-b border-gray-200 dark:border-gray-800">
+              <tr>
+                {bulkMode && <th className="px-4 py-3 text-left"><input type="checkbox" checked={selected.size === filtered.length && filtered.length > 0} onChange={toggleSelectAll} className="rounded" /></th>}
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Ticket</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Empresa</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Prioridad</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Estado</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Asignado a</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-gray-300">Categoría</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((t, idx) => (
+                <tr
+                  key={t.id}
+                  className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition"
+                  onClick={() => !bulkMode && navigate('ticket-detail', { id: t.id })}
+                  style={{ cursor: bulkMode ? 'default' : 'pointer' }}
+                >
+                  {bulkMode && (
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        onClick={() => toggleSelect(t.id)}
+                        className="flex items-center justify-center w-5 h-5"
+                      >
+                        {selected.has(t.id)
+                          ? <CheckSquare size={18} className="text-violet-600 dark:text-violet-400" />
+                          : <Square size={18} className="text-gray-400" />
+                        }
+                      </button>
+                    </td>
+                  )}
+                  <td className="px-4 py-3">
+                    <div className="flex flex-col">
+                      <span className="font-medium text-gray-900 dark:text-white">{t.ticket_number}</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 truncate">{t.title}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400">{(t.company as any)?.name || '—'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      t.priority === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
+                      t.priority === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                      t.priority === 'medium' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {t.priority.charAt(0).toUpperCase() + t.priority.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      t.status === 'open' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
+                      t.status === 'in_progress' ? 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' :
+                      t.status === 'resolved' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                      'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                    }`}>
+                      {t.status === 'in_progress' ? 'En Progreso' : t.status.charAt(0).toUpperCase() + t.status.slice(1)}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    {t.assignee ? (
+                      <div className="flex items-center gap-2">
+                        <Avatar profile={t.assignee} size="sm" />
+                        <span className="text-gray-600 dark:text-gray-400 text-xs truncate">{t.assignee.full_name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 text-xs">Sin asignar</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600 dark:text-gray-400 text-xs">
+                    {({ soporte: 'Soporte', bug: 'Bug', solicitud: 'Solicitud', consulta: 'Consulta', otro: 'Otro' }[t.category] || t.category)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>
