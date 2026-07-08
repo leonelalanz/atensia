@@ -192,3 +192,26 @@ export async function sendInvoiceEmail(opts: {
     },
   });
 }
+
+export async function sendMembershipExpiringEmail(opts: {
+  email: string;
+  recipientName?: string;
+  membershipName: string;
+  expirationDate: string;
+  daysLeft: number;
+  cost: number;
+  currency: string;
+}): Promise<{ success: boolean; error?: string }> {
+  return sendEmail({
+    to: opts.email,
+    type: 'membership_expiring',
+    data: {
+      recipientName: opts.recipientName,
+      membershipName: opts.membershipName,
+      expirationDate: opts.expirationDate,
+      daysLeft: opts.daysLeft,
+      cost: opts.cost,
+      currency: opts.currency,
+    },
+  });
+}

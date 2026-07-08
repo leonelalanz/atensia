@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, CheckCheck, Ticket, UserCheck, CheckCircle2, MessageSquare, AlertTriangle, Info, X } from 'lucide-react';
+import { Bell, CheckCheck, Ticket, UserCheck, CheckCircle2, MessageSquare, AlertTriangle, Info, X, Wallet } from 'lucide-react';
 import { useNotifications } from '../../contexts/NotificationsContext';
 import { useRouter } from '../../contexts/RouterContext';
 import { AppNotification } from '../../types';
@@ -21,6 +21,7 @@ const TYPE_ICON: Record<AppNotification['type'], React.ElementType> = {
   ticket_commented: MessageSquare,
   ticket_escalated: AlertTriangle,
   general:          Info,
+  membership_expiring: Wallet,
 };
 
 const TYPE_COLOR: Record<AppNotification['type'], string> = {
@@ -30,6 +31,7 @@ const TYPE_COLOR: Record<AppNotification['type'], string> = {
   ticket_commented: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
   ticket_escalated: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   general:          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
+  membership_expiring: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
 interface Props {

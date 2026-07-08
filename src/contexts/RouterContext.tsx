@@ -34,6 +34,7 @@ const ROUTE_TO_PATH: Record<Route, string> = {
   'exchange-rates':    '/admin/exchange-rates',
   'clientes':          '/clientes',
   'despliegues':       '/despliegues',
+  'memberships':       '/memberships',
 };
 
 function pathToRoute(pathname: string): { route: Route; params: Record<string, string> } {
@@ -64,6 +65,7 @@ function pathToRoute(pathname: string): { route: Route; params: Record<string, s
   if (pathname === '/privacy') return { route: 'privacy', params: {} };
   if (pathname === '/clientes') return { route: 'clientes', params: {} };
   if (pathname === '/despliegues') return { route: 'despliegues', params: {} };
+  if (pathname === '/memberships') return { route: 'memberships', params: {} };
   return { route: 'dashboard', params: {} };
 }
 

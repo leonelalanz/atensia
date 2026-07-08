@@ -32,10 +32,14 @@ import SuspendedPage from './pages/SuspendedPage';
 import { NotificationsProvider } from './contexts/NotificationsContext';
 import PaginaClientes from './pages/agencia/PaginaClientes';
 import PaginaDespliegues from './pages/agencia/PaginaDespliegues';
+import MembershipsPage from './pages/admin/MembershipsPage';
+import { useMembershipAlerts } from './hooks/useMembershipAlerts';
 
 function AppRoutes() {
   const { user, loading, profile } = useAuth();
   const { route, navigate } = useRouter();
+
+  useMembershipAlerts();
 
   useEffect(() => {
     if (!loading) {
@@ -94,6 +98,7 @@ function AppRoutes() {
       case 'upgrade-plan': return (role === 'admin' || role === 'superadmin') ? <UpgradeRequest /> : <DashboardPage />;
       case 'clientes': return role === 'admin' ? <PaginaClientes /> : <DashboardPage />;
       case 'despliegues': return (role === 'admin' || role === 'developer') ? <PaginaDespliegues /> : <DashboardPage />;
+      case 'memberships': return (role === 'admin' || role === 'superadmin') ? <MembershipsPage /> : <DashboardPage />;
       default: return <DashboardPage />;
     }
   }
