@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Grid3X3, List } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { obtenerClientes, obtenerPlataformasDespliegue } from '../../lib/clientes';
 import {
@@ -24,6 +25,8 @@ export default function PaginaDespliegues() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState('');
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [viewMode, setViewMode] = useState<'cards' | 'list'>('list');
+  const [clientesViewMode, setClientesViewMode] = useState<'cards' | 'list'>('cards');
 
   const [formulario, setFormulario] = useState({
     tipo: 'production',
@@ -289,30 +292,111 @@ export default function PaginaDespliegues() {
       )}
 
       <div className="mb-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Seleccionar Cliente / Empresa
-        </label>
-        <select
-          value={clienteSeleccionado}
-          onChange={(e) => setClienteSeleccionado(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="">Elige un cliente o empresa...</option>
-          {profile?.role === 'developer' && profile?.company?.name && (
-            <option value={profile.company_id}>
-              📍 Mi Empresa: {profile.company.name}
-            </option>
-          )}
-          {clientes.map((cliente) => (
-            <option key={cliente.id} value={cliente.client_company_id}>
-              {cliente.client_company?.name}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center justify-between mb-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Seleccionar Cliente / Empresa
+          </label>
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setClientesViewMode('cards')}
+              className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-colors ${
+                clientesViewMode === 'cards'
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <Grid3X3 size={14} />
+            </button>
+            <button
+              onClick={() => setClientesViewMode('list')}
+              className={`flex items-center gap-1.5 px-2 py-1.5 text-xs font-medium transition-colors ${
+                clientesViewMode === 'list'
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              <List size={14} />
+            </button>
+          </div>
+        </div>
+
+        {clientesViewMode === 'cards' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {profile?.role === 'developer' && profile?.company?.name && (
+              <button
+                onClick={() => setClienteSeleccionado(profile.company_id!)}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  clienteSeleccionado === profile.company_id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <p className="font-semibold text-gray-900">📍 Mi Empresa</p>
+                <p className="text-sm text-gray-600">{profile.company.name}</p>
+              </button>
+            )}
+            {clientes.map((cliente) => (
+              <button
+                key={cliente.id}
+                onClick={() => setClienteSeleccionado(cliente.client_company_id)}
+                className={`p-4 rounded-lg border-2 transition-all text-left ${
+                  clienteSeleccionado === cliente.client_company_id
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
+              >
+                <p className="font-semibold text-gray-900">{cliente.client_company?.name}</p>
+                <p className="text-xs text-gray-500 mt-1">Cliente</p>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <select
+            value={clienteSeleccionado}
+            onChange={(e) => setClienteSeleccionado(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Elige un cliente o empresa...</option>
+            {profile?.role === 'developer' && profile?.company?.name && (
+              <option value={profile.company_id}>
+                📍 Mi Empresa: {profile.company.name}
+              </option>
+            )}
+            {clientes.map((cliente) => (
+              <option key={cliente.id} value={cliente.client_company_id}>
+                {cliente.client_company?.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {clienteSeleccionado && (
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex justify-between items-center">
+          <div className="flex border border-gray-300 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setViewMode('cards')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'cards'
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Vista de tarjetas"
+            >
+              <Grid3X3 size={16} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'list'
+                  ? 'bg-gray-200 text-gray-900'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+              }`}
+              title="Vista de lista"
+            >
+              <List size={16} />
+            </button>
+          </div>
           <Button onClick={() => setModalAbierto(true)}>+ Nuevo Despliegue</Button>
         </div>
       )}
@@ -416,84 +500,154 @@ export default function PaginaDespliegues() {
             </div>
           </div>
 
-          {/* Tabla de Despliegues */}
-          <div className="mt-6 bg-white rounded-lg shadow">
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-gray-100 border-b border-gray-300">
-                  <tr>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Plataforma</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Versión</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Build</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Tipo</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Estado</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Fecha Creación</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Acción</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {despliegues.map((d) => (
-                    <tr key={d.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.platform?.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">v{d.version}</td>
-                      <td className="px-4 py-3 text-sm text-gray-700">#{d.build_number}</td>
-                      <td className="px-4 py-3 text-sm">
-                        {d.deployment_type === 'test' ? '🧪 TEST' : '🚀 PROD'}
-                      </td>
-                      <td className="px-4 py-3 text-sm font-medium">
-                        <span className={`px-2 py-1 rounded text-xs ${obtenerColorEstado(d.status)}`}>
-                          {d.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
-                        {new Date(d.created_at).toLocaleDateString('es-ES', {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </td>
-                      <td className="px-4 py-3 text-sm whitespace-nowrap">
-                        {d.status === 'draft' && (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => handleAprobar(d.id)}
-                              className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
-                            >
-                              ✓
-                            </button>
-                            <button
-                              onClick={() => handleRechazar(d.id)}
-                              className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
-                            >
-                              ✗
-                            </button>
-                          </div>
-                        )}
-                        {d.status === 'approved' && (
-                          <button
-                            onClick={() => handleEnVivo(d.id)}
-                            className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
-                          >
-                            Vivo
-                          </button>
-                        )}
-                        {d.status === 'live' && (
-                          <button
-                            onClick={() => handleRevertir(d.id)}
-                            className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600"
-                          >
-                            ⟲
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Vista de Despliegues */}
+          {viewMode === 'cards' ? (
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {despliegues.map((d) => (
+                <div key={d.id} className="bg-white rounded-lg shadow-md p-4 border border-gray-200 hover:shadow-lg transition">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{d.platform?.name}</h3>
+                      <p className="text-xs text-gray-500">v{d.version} Build #{d.build_number}</p>
+                    </div>
+                    <span className="text-lg">{d.deployment_type === 'test' ? '🧪' : '🚀'}</span>
+                  </div>
+
+                  <div className="space-y-2 mb-4">
+                    <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${obtenerColorEstado(d.status)}`}>
+                      {d.status}
+                    </span>
+                    <p className="text-xs text-gray-600">
+                      {new Date(d.created_at).toLocaleDateString('es-ES', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
+
+                  {d.release_notes && (
+                    <p className="text-xs text-gray-600 mb-4 line-clamp-2">{d.release_notes}</p>
+                  )}
+
+                  <div className="flex gap-2 flex-wrap">
+                    {d.status === 'draft' && (
+                      <>
+                        <button
+                          onClick={() => handleAprobar(d.id)}
+                          className="flex-1 px-2 py-1.5 bg-green-500 text-white text-xs rounded font-medium hover:bg-green-600 transition"
+                        >
+                          ✓ Aprobar
+                        </button>
+                        <button
+                          onClick={() => handleRechazar(d.id)}
+                          className="flex-1 px-2 py-1.5 bg-red-500 text-white text-xs rounded font-medium hover:bg-red-600 transition"
+                        >
+                          ✗ Rechazar
+                        </button>
+                      </>
+                    )}
+                    {d.status === 'approved' && (
+                      <button
+                        onClick={() => handleEnVivo(d.id)}
+                        className="w-full px-2 py-1.5 bg-blue-500 text-white text-xs rounded font-medium hover:bg-blue-600 transition"
+                      >
+                        🚀 Marcar en Vivo
+                      </button>
+                    )}
+                    {d.status === 'live' && (
+                      <button
+                        onClick={() => handleRevertir(d.id)}
+                        className="w-full px-2 py-1.5 bg-orange-500 text-white text-xs rounded font-medium hover:bg-orange-600 transition"
+                      >
+                        ⟲ Revertir
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
+          ) : (
+            <div className="mt-6 bg-white rounded-lg shadow">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100 border-b border-gray-300">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Plataforma</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Versión</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Build</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Tipo</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Estado</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Fecha Creación</th>
+                      <th className="px-4 py-3 text-left text-sm font-bold text-gray-800">Acción</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {despliegues.map((d) => (
+                      <tr key={d.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm font-medium text-gray-900">{d.platform?.name}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">v{d.version}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">#{d.build_number}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {d.deployment_type === 'test' ? '🧪 TEST' : '🚀 PROD'}
+                        </td>
+                        <td className="px-4 py-3 text-sm font-medium">
+                          <span className={`px-2 py-1 rounded text-xs ${obtenerColorEstado(d.status)}`}>
+                            {d.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-sm text-gray-700">
+                          {new Date(d.created_at).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </td>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
+                          {d.status === 'draft' && (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleAprobar(d.id)}
+                                className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => handleRechazar(d.id)}
+                                className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                              >
+                                ✗
+                              </button>
+                            </div>
+                          )}
+                          {d.status === 'approved' && (
+                            <button
+                              onClick={() => handleEnVivo(d.id)}
+                              className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                            >
+                              Vivo
+                            </button>
+                          )}
+                          {d.status === 'live' && (
+                            <button
+                              onClick={() => handleRevertir(d.id)}
+                              className="px-2 py-1 bg-orange-500 text-white text-xs rounded hover:bg-orange-600"
+                            >
+                              ⟲
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
         </>
       )}
 
